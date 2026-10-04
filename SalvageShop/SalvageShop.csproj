@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{E5B28D63-9F47-4C10-B2DA-7F3C0A16E824}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <!-- ★ The namespace starts with GameModeForge. on purpose: Game Mode
+         Forge's log copies any GAME error whose stack trace has a frame
+         starting "GameModeForge.", so a throw out of one of these patches
+         lands in GameModeForge.log with no code of its own. -->
+    <RootNamespace>GameModeForge.SalvageShop</RootNamespace>
+    <AssemblyName>SalvageShop</AssemblyName>
+    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <Deterministic>true</Deterministic>
+    <!-- Keeps the builder's absolute paths OUT of the shipped DLL - the same
+         line, for the same reason, as the other csproj files beside it.
+         These repos are public. Please leave it in. -->
+    <PathMap>$(MSBuildProjectDirectory)=.</PathMap>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <!-- $(PunkManaged) and $(PunkCore) come from Directory.Build.props at the
+       repo root, exactly as for the other projects - see BUILDING.md.
+
+       ★ NO REFERENCE TO GameModeForge, NewGamePlus, WeaponForge OR ANY
+       SIBLING. This DLL must build and run with every other mod absent. It
+       finds Game Mode Forge's log, New Game Plus's carry contract and Weapon
+       Forge's rank by TYPE NAME at run time - never the other way round.
+
+       TextMeshPro is reached by reflection (SalvageUi), the house idiom in
+       every repo, to keep the reference surface small. -->
+  <ItemGroup>
+    <Reference Include="0Harmony">
+      <HintPath>$(PunkCore)\0Harmony.dll</HintPath>
+    </Reference>
+    <Reference Include="BepInEx.Core">
+      <HintPath>$(PunkCore)\BepInEx.Core.dll</HintPath>
+    </Reference>
+    <Reference Include="BepInEx.Unity.Mono">
+      <HintPath>$(PunkCore)\BepInEx.Unity.Mono.dll</HintPath>
+    </Reference>
+    <!-- MinMaxFloat: the game's burn and explosion add-ons carry one, and the
+         salvage add-ons derive from them. -->
+    <Reference Include="MyBox">
+      <HintPath>$(PunkManaged)\MyBox.dll</HintPath>
+    </Reference>
+    <Reference Include="Newtonsoft.Json">
+      <HintPath>$(PunkManaged)\Newtonsoft.Json.dll</HintPath>
+    </Reference>
+    <Reference Include="Punk.Main">
+      <HintPath>$(PunkManaged)\Punk.Main.dll</HintPath>
+    </Reference>
+    <Reference Include="ServiceLocator">
+      <HintPath>$(PunkManaged)\ServiceLocator.dll</HintPath>
+    </Reference>
+    <!-- ModuleData is an Odin SerializedScriptableObject, so the compiler
+         needs this to read a module's data at all. -->
+    <Reference Include="Sirenix.Serialization">
+      <HintPath>$(PunkManaged)\Sirenix.Serialization.dll</HintPath>
+    </Reference>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <!-- PlayerInput and the pad / keyboard: the confirm key (Y / R) is read on
+         the menu player's own devices. Nothing is bound into the game's input. -->
+    <Reference Include="Unity.InputSystem">
+      <HintPath>$(PunkManaged)\Unity.InputSystem.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine">
+      <HintPath>$(PunkManaged)\UnityEngine.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>$(PunkManaged)\UnityEngine.CoreModule.dll</HintPath>
+    </Reference>
+    <!-- Button, Image and the layout of the SALVAGE panel. -->
+    <Reference Include="UnityEngine.UI">
+      <HintPath>$(PunkManaged)\UnityEngine.UI.dll</HintPath>
+    </Reference>
+    <!-- RectTransformUtility and Canvas. -->
+    <Reference Include="UnityEngine.UIModule">
+      <HintPath>$(PunkManaged)\UnityEngine.UIModule.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="SalvageShopPlugin.cs" />
+    <Compile Include="SalvageAddOns.cs" />
+    <Compile Include="SalvageApply.cs" />
+    <Compile Include="SalvageCard.cs" />
+    <Compile Include="SalvageCatalog.cs" />
+    <Compile Include="SalvageCheck.cs" />
+    <Compile Include="SalvageLog.cs" />
+    <Compile Include="SalvageMath.cs" />
+    <Compile Include="SalvagePanel.cs" />
+    <Compile Include="SalvageRecords.cs" />
+    <Compile Include="SalvageRules.cs" />
+    <Compile Include="SalvageSave.cs" />
+    <Compile Include="SalvageScreen.cs" />
+    <Compile Include="SalvageSlot.cs" />
+    <Compile Include="SalvageTab.cs" />
+    <Compile Include="SalvageUi.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+</Project>
