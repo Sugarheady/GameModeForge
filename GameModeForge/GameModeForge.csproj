@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{7C4F1A93-6D25-4E08-A3B7-2F91D6C08E45}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>GameModeForge</RootNamespace>
+    <AssemblyName>GameModeForge</AssemblyName>
+    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <Deterministic>true</Deterministic>
+    <!-- Keeps the builder's absolute paths OUT of the shipped DLL. Without
+         this, the PE debug directory embeds the full path to the .pdb - the
+         whole thing, starting at the drive letter and going through the
+         builder's own user profile - and every source file path goes into
+         the .pdb too, all readable out of a released DLL with `strings`.
+         PathMap rewrites them to a relative form; combined with Deterministic
+         it also makes the build reproducible.
+         These repos are public. Please leave it in.
+         (This comment deliberately DESCRIBES such a path rather than showing
+         one: Harness/structuretest.py fails the repo if a profile-shaped
+         absolute path appears in any committed file, and an example is
+         indistinguishable from the real thing to a grep.) -->
+    <PathMap>$(MSBuildProjectDirectory)=.</PathMap>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <!-- $(PunkManaged) is <your PUNK folder>\Punk_Data\Managed and $(PunkCore)
+       is <your PUNK folder>\BepInEx\core. Both are resolved by
+       Directory.Build.props at the repo root - see BUILDING.md. None of
+       these DLLs are redistributed here; they come from your own install.
+
+       THE REFERENCE LIST IS DELIBERATELY SHORT. The other two Forge repos
+       reference Sirenix, MyBox, Newtonsoft and four Unity modules because
+       they build game ASSETS from JSON. This mod toggles world rules and
+       (so far) builds no assets, so anything added here should be added
+       because a line of code needs it, not because the twin has it. -->
+  <ItemGroup>
+    <Reference Include="0Harmony">
+      <HintPath>$(PunkCore)\0Harmony.dll</HintPath>
+    </Reference>
+    <Reference Include="BepInEx.Core">
+      <HintPath>$(PunkCore)\BepInEx.Core.dll</HintPath>
+    </Reference>
+    <Reference Include="BepInEx.Unity.Mono">
+      <HintPath>$(PunkCore)\BepInEx.Unity.Mono.dll</HintPath>
+    </Reference>
+    <Reference Include="Punk.Main">
+      <HintPath>$(PunkManaged)\Punk.Main.dll</HintPath>
+    </Reference>
+    <Reference Include="ServiceLocator">
+      <HintPath>$(PunkManaged)\ServiceLocator.dll</HintPath>
+    </Reference>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="UnityEngine">
+      <HintPath>$(PunkManaged)\UnityEngine.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>$(PunkManaged)\UnityEngine.CoreModule.dll</HintPath>
+    </Reference>
+    <!-- Image, Button and UnityEvent's persistent-listener API, all needed by
+         the settings tab: it clones the game's own option rows and tab
+         buttons, which are UI components. TextMeshPro is deliberately NOT
+         referenced - the one string this mod sets is written by reflection,
+         the same call Module Forge made. -->
+    <Reference Include="UnityEngine.UI">
+      <HintPath>$(PunkManaged)\UnityEngine.UI.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.UIModule">
+      <HintPath>$(PunkManaged)\UnityEngine.UIModule.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="GameModeForgePlugin.cs" />
+    <Compile Include="ForgeLog.cs" />
+    <Compile Include="ForgeMode.cs" />
+    <Compile Include="ForgeModeRegistry.cs" />
+    <Compile Include="ForgeModeResetPatch.cs" />
+    <Compile Include="ForgeDiagnosticGates.cs" />
+    <Compile Include="ForgeInterop.cs" />
+    <Compile Include="ForgeModControl.cs" />
+    <Compile Include="ForgeRelaunch.cs" />
+    <Compile Include="ForgeOptionsTab.cs" />
+    <Compile Include="ForgeTabRows.cs" />
+    <Compile Include="ForgeOptionsMenu.cs" />
+    <Compile Include="ForgeOptionsPatch.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+</Project>
