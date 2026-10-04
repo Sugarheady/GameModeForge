@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>New Game Plus Builder</title>
+<style>
+  :root {
+    --bg: #0d0d11; --panel: #16161d; --panel2: #1d1d27;
+    --line: #2c2c3a; --text: #e8e8f0; --dim: #9a9ab0;
+    --accent: #7fd4ff; --accent2: #ffd27f; --bad: #ff7f7f;
+    --good: #8fe38f;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 14px/1.5 "Segoe UI", system-ui, sans-serif;
+  }
+  header {
+    padding: 14px 24px; border-bottom: 1px solid var(--line);
+    background: var(--panel);
+  }
+  header h1 { margin: 0; font-size: 20px; letter-spacing: 3px; color: var(--accent); }
+  header p { margin: 4px 0 0; color: var(--dim); max-width: 1100px; }
+  .layout {
+    display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+    gap: 16px; padding: 16px 24px 60px; max-width: 1300px;
+  }
+  @media (max-width: 860px) {
+    .layout { grid-template-columns: minmax(0, 1fr); padding: 12px 16px 40px; }
+  }
+  button {
+    background: var(--accent); color: #04141c; border: 0;
+    padding: 8px 14px; font-weight: 700; cursor: pointer;
+    border-radius: 4px; font-size: 13px; letter-spacing: 1px;
+  }
+  button:hover { filter: brightness(1.15); }
+  button.secondary { background: var(--panel2); color: var(--text); border: 1px solid var(--line); }
+  input[type=number] {
+    background: #0b0b0f; color: var(--text); border: 1px solid var(--line);
+    border-radius: 4px; padding: 5px 8px; font: inherit; width: 100%;
+  }
+  label.f { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--dim); }
+  label.f span { letter-spacing: .5px; text-transform: uppercase; font-size: 10.5px; }
+  label.c { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; cursor: pointer; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+  section {
+    background: var(--panel2); border: 1px solid var(--line);
+    border-radius: 6px; margin: 0 0 12px; padding: 12px 14px;
+  }
+  section h2 {
+    margin: 0 0 10px; font-size: 12px; letter-spacing: 2px;
+    text-transform: uppercase; color: var(--accent);
+  }
+  section.off .grid { opacity: .45; }
+  em { color: var(--dim); font-style: normal; font-size: 12px; display: block; margin-top: 6px; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .presets { display: flex; flex-direction: column; gap: 8px; }
+  .preset { display: flex; gap: 10px; align-items: flex-start; }
+  .preset button { flex: 0 0 auto; min-width: 140px; }
+  .preset div { font-size: 12.5px; color: var(--dim); }
+  pre#output {
+    margin: 0; padding: 10px; background: #0b0b0f; border: 1px solid var(--line);
+    border-radius: 4px; font: 12px/1.45 Consolas, monospace;
+    color: var(--accent2); max-height: 360px; overflow: auto; white-space: pre-wrap;
+  }
+  code { background: #0b0b0f; padding: 1px 4px; border-radius: 3px;
+    font: 12px Consolas, monospace; color: var(--accent2); }
+  table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+  th, td { border-bottom: 1px solid var(--line); padding: 4px 6px; text-align: right; }
+  th:first-child, td:first-child { text-align: left; }
+  th { color: var(--dim); font-weight: 600; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; }
+  td.zero { color: #55556a; }
+  ul { margin: 0; padding-left: 18px; font-size: 13px; }
+  li { margin-bottom: 3px; }
+  .warn { color: var(--accent2); }
+  .ok { color: var(--good); }
+  #said { font-size: 12.5px; min-height: 18px; margin-top: 8px; }
+  input[type=file] { color: var(--dim); font-size: 12px; max-width: 100%; }
+</style>
+</head>
+<body>
+<header>
+  <h1>NEW GAME PLUS BUILDER</h1>
+  <p>How much tougher each New Game Plus world gets. This makes one file,
+  <code>com.sugarheady.gamemodeforge.newgameplus.rules.json</code>, for your
+  <b>BepInEx\config</b> folder (beside the <code>.cfg</code> files). New Game Plus
+  writes the defaults there the first time it runs, so there is always one to
+  replace. <b>No restart needed:</b> the rules are read when a world begins &mdash;
+  at each jump, and at the start of a run for the first world &mdash; and a world
+  keeps the rules it began with, through every save and Continue.</p>
+</header>
+
+<div class="layout">
+<div>
+  <section>
+    <h2>Presets</h2>
+    <div class="presets">
+      <div class="preset"><button type="button" data-preset="default">DEFAULT</button>
+        <div>The shipped rules. The first world is the game as it comes; from NEW GAME PLUS 1,
+        enemies have +50% health a plus on a share that starts at 25% and rises 25% a plus,
+        every room spends +30% a plus more on enemies, and every enemy &mdash; and the world's
+        hazards &mdash; does +100% damage a plus.</div></div>
+      <div class="preset"><button type="button" data-preset="test">TEST</button>
+        <div>For trying it out: +50% health on <b>every</b> enemy and +30% enemies from the
+        <b>first</b> world (from plus 0), and +100% damage from NEW GAME PLUS 1 &mdash; teleport
+        to the Queens with the debug menu to get there.</div></div>
+      <div class="preset"><button type="button" data-preset="steep">STEEP</button>
+        <div>Hard fast: +100% health a plus on every enemy, +50% enemies a plus and +200% damage
+        a plus, all from NEW GAME PLUS 1.</div></div>
+      <div class="preset"><button type="button" data-preset="off">OFF</button>
+        <div>No buffs at all &mdash; New Game Plus just rerolls the world and keeps your build.</div></div>
+    </div>
+  </section>
+
+  <section id="sec-health">
+    <h2>Enemy health</h2>
+    <label class="c"><input type="checkbox" data-path="enemyHealth.enabled"> on</label>
+    <div class="grid">
+      <label class="f"><span>from plus</span><input type="number" min="0" step="1" data-path="enemyHealth.fromPlus"></label>
+      <label class="f"><span>start %</span><input type="number" step="5" data-path="enemyHealth.start"></label>
+      <label class="f"><span>added a plus %</span><input type="number" step="5" data-path="enemyHealth.perPlus"></label>
+      <label class="f"><span>cap % (0 = none)</span><input type="number" min="0" step="10" data-path="enemyHealth.max"></label>
+      <label class="f"><span>coverage start %</span><input type="number" min="0" max="100" step="5" data-path="enemyHealth.coverageStart"></label>
+      <label class="f"><span>coverage added a plus %</span><input type="number" step="5" data-path="enemyHealth.coveragePerPlus"></label>
+    </div>
+    <em>+50% health is the enemy's health &times;1.5 &mdash; the resource it actually takes
+    damage through (a drone's Caps or Electron, a Crawler's Tech), not its ammo.
+    <b>Coverage</b> is the share of enemies that get it; which ones is fixed per enemy,
+    so the same enemy stays buffed after a Continue. The Queens get it too. Your own
+    drones and minions never do.</em>
+  </section>
+
+  <section id="sec-count">
+    <h2>Enemy count</h2>
+    <label class="c"><input type="checkbox" data-path="enemyCount.enabled"> on</label>
+    <div class="grid">
+      <label class="f"><span>from plus</span><input type="number" min="0" step="1" data-path="enemyCount.fromPlus"></label>
+      <label class="f"><span>start %</span><input type="number" step="5" data-path="enemyCount.start"></label>
+      <label class="f"><span>added a plus %</span><input type="number" step="5" data-path="enemyCount.perPlus"></label>
+      <label class="f"><span>cap % (0 = none)</span><input type="number" min="0" step="10" data-path="enemyCount.max"></label>
+    </div>
+    <em>Every room's spawn budget, world-wide (so no coverage). More budget means more
+    enemies and sometimes bigger ones. It is a budget, not a head count: a crowded room
+    stops early. It can never add a Queen &mdash; the boss rooms get no ordinary enemies.</em>
+  </section>
+
+  <section id="sec-damage">
+    <h2>Enemy damage</h2>
+    <label class="c"><input type="checkbox" data-path="enemyDamage.enabled"> on</label>
+    <div class="grid">
+      <label class="f"><span>from plus</span><input type="number" min="0" step="1" data-path="enemyDamage.fromPlus"></label>
+      <label class="f"><span>start %</span><input type="number" step="25" data-path="enemyDamage.start"></label>
+      <label class="f"><span>added a plus %</span><input type="number" step="25" data-path="enemyDamage.perPlus"></label>
+      <label class="f"><span>cap % (0 = none)</span><input type="number" min="0" step="50" data-path="enemyDamage.max"></label>
+    </div>
+    <label class="c" style="margin-top:10px"><input type="checkbox" data-path="enemyDamage.environment"> hazards too
+      (the world's own damage: hazard blocks, white bulbs, exploding plants, steam)</label>
+    <em>+100% damage is double. <b>Every</b> enemy gets it &mdash; no coverage &mdash; bosses
+    included, and it counts everything they do: shots, beams, blasts, contact hits, electric
+    sparks and the fire they set. It hits everything harder: your ship, your drones, minions
+    and wingmen, a co-op partner. A bullet you knock back keeps its extra damage. With
+    <b>hazards too</b> on, the world's own damage takes the same % on everything it hits,
+    enemies included. Nothing of yours is ever made stronger or weaker, and crates and boxes are
+    nobody's: they hold loot and are left as they are.</em>
+  </section>
+
+  <section>
+    <h2>How the numbers stack</h2>
+    <em style="margin-top:0">A buff <b>adds up</b> each plus from the one it starts at:
+    <code>start + added &times; (plus &minus; from plus)</code>, up to the cap. So +50% start
+    and +50% a plus is +50%, +100%, +150%&hellip; Nothing before <b>from plus</b>; plus 0 is
+    the first world. Coverage ramps the same way and never passes 100%.</em>
+  </section>
+</div>
+
+<div>
+  <section>
+    <h2>Each world</h2>
+    <table id="preview">
+      <thead><tr><th>world</th><th>health</th><th>on</th><th>count</th><th>damage</th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <div id="said"></div>
+  </section>
+
+  <section>
+    <h2>The file</h2>
+    <pre id="output"></pre>
+    <div class="row" style="margin-top:10px">
+      <button type="button" id="b-copy">COPY</button>
+      <button type="button" id="b-save">SAVE .JSON</button>
+      <label class="secondary" style="font-size:12px;color:var(--dim)">LOAD .JSON
+        <input type="file" id="b-load" accept=".json,application/json"></label>
+    </div>
+    <em>Save it as <code>com.sugarheady.gamemodeforge.newgameplus.rules.json</code> in
+    <b>BepInEx\config</b>, replacing the one there.</em>
+  </section>
+
+  <section>
+    <h2>In the game instead</h2>
+    <ul>
+      <li>The <b>GAME MODE FORGE</b> tab in Options has three sliders, <b>Enemy health a
+      plus</b>, <b>Enemy count a plus</b> and <b>Enemy damage a plus</b>. Each sets that buff's
+      start and its added-a-plus to the same number and writes this same file; everything else
+      here is kept. <b>Enemy damage: hazards too</b> is the switch above, in the tab.</li>
+      <li>The same tab has <b>what carries</b> to the next world &mdash; ship grid, vault,
+      money, shop stock, shop prices, stations count, ingredients ever owned, run time and
+      kills (all on), and whether you arrive on full health, fuel and ammo (the default) or
+      keep what you had. Those live in
+      <code>com.sugarheady.gamemodeforge.newgameplus.cfg</code>, and are read when you jump.</li>
+      <li><b>Marker on buffed enemies</b> (off by default) puts a tiny marker above each
+      enemy New Game Plus has buffed.</li>
+    </ul>
+  </section>
+</div>
+</div>
+
+<!-- The presets, as plain JSON so a harness can read them without a browser. -->
+<script type="application/json" id="presets">
+{
+  "default": {
+    "version": 2,
+    "enemyHealth": { "enabled": true, "fromPlus": 1, "start": 50, "perPlus": 50, "max": 0, "coverageStart": 25, "coveragePerPlus": 25 },
+    "enemyCount":  { "enabled": true, "fromPlus": 1, "start": 30, "perPlus": 30, "max": 300 },
+    "enemyDamage": { "enabled": true, "fromPlus": 1, "start": 100, "perPlus": 100, "max": 0, "environment": true }
+  },
+  "test": {
+    "version": 2,
+    "enemyHealth": { "enabled": true, "fromPlus": 0, "start": 50, "perPlus": 50, "max": 0, "coverageStart": 100, "coveragePerPlus": 0 },
+    "enemyCount":  { "enabled": true, "fromPlus": 0, "start": 30, "perPlus": 30, "max": 300 },
+    "enemyDamage": { "enabled": true, "fromPlus": 1, "start": 100, "perPlus": 100, "max": 0, "environment": true }
+  },
+  "steep": {
+    "version": 2,
+    "enemyHealth": { "enabled": true, "fromPlus": 1, "start": 100, "perPlus": 100, "max": 0, "coverageStart": 100, "coveragePerPlus": 0 },
+    "enemyCount":  { "enabled": true, "fromPlus": 1, "start": 50, "perPlus": 50, "max": 400 },
+    "enemyDamage": { "enabled": true, "fromPlus": 1, "start": 200, "perPlus": 200, "max": 0, "environment": true }
+  },
+  "off": {
+    "version": 2,
+    "enemyHealth": { "enabled": false, "fromPlus": 1, "start": 50, "perPlus": 50, "max": 0, "coverageStart": 25, "coveragePerPlus": 25 },
+    "enemyCount":  { "enabled": false, "fromPlus": 1, "start": 30, "perPlus": 30, "max": 300 },
+    "enemyDamage": { "enabled": false, "fromPlus": 1, "start": 100, "perPlus": 100, "max": 0, "environment": true }
+  }
+}
+</script>
+
+<script>
+(function () {
+  "use strict";
+
+  var PRESETS = JSON.parse(document.getElementById("presets").textContent);
+  var fields = Array.prototype.slice.call(document.querySelectorAll("[data-path]"));
+
+  function num(v, d) {
+    var n = parseFloat(v);
+    return isFinite(n) ? n : d;
+  }
+
+  // The same arithmetic as NgMath.Value / NgMath.Coverage in the DLL.
+  function value(b, plus) {
+    if (!b.enabled || plus < b.fromPlus) return 0;
+    var v = b.start + b.perPlus * (plus - b.fromPlus);
+    if (b.max > 0 && v > b.max) v = b.max;
+    return v < 0 ? 0 : v;
+  }
+
+  function coverage(b, plus) {
+    if (!b.enabled || plus < b.fromPlus) return 0;
+    var c = b.coverageStart + b.coveragePerPlus * (plus - b.fromPlus);
+    if (c > 100) c = 100;
+    return c < 0 ? 0 : c;
+  }
+
+  function worldName(plus) {
+    return plus <= 0 ? "WORLD 1" : "NEW GAME PLUS " + plus;
+  }
+
+  function pct(v) {
+    return "+" + (Math.round(v * 10) / 10) + "%";
+  }
+
+  function build() {
+    var out = { version: 2, enemyHealth: {}, enemyCount: {}, enemyDamage: {} };
+
+    fields.forEach(function (el) {
+      var parts = el.getAttribute("data-path").split(".");
+      var v = el.type === "checkbox" ? el.checked
+            : (parts[1] === "fromPlus" ? Math.max(0, Math.round(num(el.value, 0))) : num(el.value, 0));
+      out[parts[0]][parts[1]] = v;
+    });
+
+    return out;
+  }
+
+  function fill(obj) {
+    fields.forEach(function (el) {
+      var parts = el.getAttribute("data-path").split(".");
+      var b = obj[parts[0]] || {};
+      if (!(parts[1] in b)) return;
+      if (el.type === "checkbox") el.checked = !!b[parts[1]];
+      else el.value = b[parts[1]];
+    });
+    refresh();
+  }
+
+  function refresh() {
+    var r = build();
+
+    document.getElementById("sec-health").classList.toggle("off", !r.enemyHealth.enabled);
+    document.getElementById("sec-count").classList.toggle("off", !r.enemyCount.enabled);
+    document.getElementById("sec-damage").classList.toggle("off", !r.enemyDamage.enabled);
+
+    var body = document.querySelector("#preview tbody");
+    body.innerHTML = "";
+
+    for (var p = 0; p <= 8; p++) {
+      var h = value(r.enemyHealth, p);
+      var hc = h > 0 ? coverage(r.enemyHealth, p) : 0;
+      var c = value(r.enemyCount, p);
+      var d = value(r.enemyDamage, p);
+      var tr = document.createElement("tr");
+
+      [worldName(p), h > 0 ? pct(h) : "-", hc > 0 ? Math.round(hc) + "% of enemies" : "-",
+       c > 0 ? pct(c) : "-",
+       d > 0 ? pct(d) + (r.enemyDamage.environment ? " + hazards" : "") : "-"].forEach(function (text, i) {
+        var td = document.createElement("td");
+        td.textContent = text;
+        if (text === "-") td.className = "zero";
+        tr.appendChild(td);
+      });
+
+      body.appendChild(tr);
+    }
+
+    var said = [];
+    if (r.enemyHealth.enabled && r.enemyHealth.coverageStart <= 0 && r.enemyHealth.coveragePerPlus <= 0)
+      said.push("<span class=warn>Enemy health covers 0% of enemies at every plus - it does nothing.</span>");
+    if (r.enemyHealth.enabled && r.enemyHealth.max > 0 && r.enemyHealth.max < r.enemyHealth.start)
+      said.push("<span class=warn>The health cap is below its start, so every world gets the cap.</span>");
+    if (r.enemyCount.enabled && r.enemyCount.max > 0 && r.enemyCount.max < r.enemyCount.start)
+      said.push("<span class=warn>The count cap is below its start, so every world gets the cap.</span>");
+    if (r.enemyDamage.enabled && r.enemyDamage.max > 0 && r.enemyDamage.max < r.enemyDamage.start)
+      said.push("<span class=warn>The damage cap is below its start, so every world gets the cap.</span>");
+    if (r.enemyDamage.enabled && r.enemyDamage.start <= 0 && r.enemyDamage.perPlus <= 0)
+      said.push("<span class=warn>Enemy damage is on but adds nothing at any plus.</span>");
+    if (r.enemyHealth.fromPlus === 0 || r.enemyCount.fromPlus === 0 || r.enemyDamage.fromPlus === 0)
+      said.push("<span class=ok>From plus 0: the first world of every run is already tougher.</span>");
+    document.getElementById("said").innerHTML = said.join("<br>");
+
+    document.getElementById("output").textContent = JSON.stringify(r, null, 2);
+  }
+
+  fields.forEach(function (el) {
+    el.addEventListener("input", refresh);
+    el.addEventListener("change", refresh);
+  });
+
+  Array.prototype.forEach.call(document.querySelectorAll("[data-preset]"), function (b) {
+    b.addEventListener("click", function () {
+      fill(JSON.parse(JSON.stringify(PRESETS[b.getAttribute("data-preset")])));
+    });
+  });
+
+  document.getElementById("b-copy").addEventListener("click", function () {
+    var text = document.getElementById("output").textContent;
+    if (navigator.clipboard) navigator.clipboard.writeText(text);
+  });
+
+  document.getElementById("b-save").addEventListener("click", function () {
+    var blob = new Blob([document.getElementById("output").textContent], { type: "application/json" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "com.sugarheady.gamemodeforge.newgameplus.rules.json";
+    a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+  });
+
+  document.getElementById("b-load").addEventListener("change", function (e) {
+    var f = e.target.files && e.target.files[0];
+    if (!f) return;
+    var reader = new FileReader();
+    reader.onload = function () {
+      try {
+        fill(JSON.parse(reader.result));
+      } catch (err) {
+        document.getElementById("said").innerHTML =
+          "<span class=warn>That file is not valid JSON: " + err.message + "</span>";
+      }
+    };
+    reader.readAsText(f);
+    e.target.value = "";
+  });
+
+  fill(JSON.parse(JSON.stringify(PRESETS["default"])));
+})();
+</script>
+</body>
+</html>

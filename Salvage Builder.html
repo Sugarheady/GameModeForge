@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Salvage Builder</title>
+<style>
+  :root {
+    --bg: #0d0d11; --panel: #16161d; --panel2: #1d1d27;
+    --line: #2c2c3a; --text: #e8e8f0; --dim: #9a9ab0;
+    --accent: #ffb36b; --accent2: #ffd27f; --bad: #ff7f7f;
+    --good: #8fe38f;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 14px/1.5 "Segoe UI", system-ui, sans-serif;
+  }
+  header {
+    padding: 14px 24px; border-bottom: 1px solid var(--line);
+    background: var(--panel);
+  }
+  header h1 { margin: 0; font-size: 20px; letter-spacing: 3px; color: var(--accent); }
+  header p { margin: 4px 0 0; color: var(--dim); max-width: 1100px; }
+  .layout {
+    display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    gap: 16px; padding: 16px 24px 60px; max-width: 1360px;
+  }
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: minmax(0, 1fr); padding: 12px 16px 40px; }
+  }
+  button {
+    background: var(--accent); color: #1c0f04; border: 0;
+    padding: 8px 14px; font-weight: 700; cursor: pointer;
+    border-radius: 4px; font-size: 13px; letter-spacing: 1px;
+  }
+  button:hover { filter: brightness(1.15); }
+  input[type=number], select {
+    background: #0b0b0f; color: var(--text); border: 1px solid var(--line);
+    border-radius: 4px; padding: 5px 8px; font: inherit; width: 100%;
+  }
+  input[type=number]::placeholder { color: #55556a; }
+  label.f { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--dim); }
+  label.f span { letter-spacing: .5px; text-transform: uppercase; font-size: 10.5px; }
+  label.c { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; cursor: pointer; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+  section {
+    background: var(--panel2); border: 1px solid var(--line);
+    border-radius: 6px; margin: 0 0 12px; padding: 12px 14px;
+  }
+  section h2 {
+    margin: 0 0 10px; font-size: 12px; letter-spacing: 2px;
+    text-transform: uppercase; color: var(--accent);
+  }
+  details.stat {
+    border: 1px solid var(--line); border-radius: 5px; margin: 0 0 8px; padding: 6px 10px;
+    background: var(--panel);
+  }
+  details.stat summary { cursor: pointer; font-weight: 600; letter-spacing: .5px; }
+  details.stat summary small { color: var(--dim); font-weight: 400; margin-left: 8px; }
+  details.stat.off summary { color: #66667a; }
+  details.stat .own { margin-top: 8px; }
+  em { color: var(--dim); font-style: normal; font-size: 12px; display: block; margin-top: 6px; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .presets { display: flex; flex-direction: column; gap: 8px; }
+  .preset { display: flex; gap: 10px; align-items: flex-start; }
+  .preset button { flex: 0 0 auto; min-width: 140px; }
+  .preset div { font-size: 12.5px; color: var(--dim); }
+  pre#output {
+    margin: 0; padding: 10px; background: #0b0b0f; border: 1px solid var(--line);
+    border-radius: 4px; font: 12px/1.45 Consolas, monospace;
+    color: var(--accent2); max-height: 420px; overflow: auto; white-space: pre-wrap;
+  }
+  code { background: #0b0b0f; padding: 1px 4px; border-radius: 3px;
+    font: 12px Consolas, monospace; color: var(--accent2); }
+  table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+  th, td { border-bottom: 1px solid var(--line); padding: 3px 6px; text-align: right; }
+  th:first-child, td:first-child { text-align: left; }
+  th { color: var(--dim); font-weight: 600; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; }
+  td.zero { color: #55556a; }
+  ul { margin: 0; padding-left: 18px; font-size: 13px; }
+  li { margin-bottom: 3px; }
+  .warn { color: var(--accent2); }
+  .ok { color: var(--good); }
+  #said { font-size: 12.5px; min-height: 18px; margin-top: 8px; }
+  input[type=file] { color: var(--dim); font-size: 12px; max-width: 100%; }
+</style>
+</head>
+<body>
+<header>
+  <h1>SALVAGE BUILDER</h1>
+  <p>Every number in the Salvage Shop: what a scrap pays, what an upgrade step costs, and what
+  each stat's step gives. This makes one file,
+  <code>com.sugarheady.gamemodeforge.salvageshop.rules.json</code>, for your
+  <b>BepInEx\config</b> folder (beside the <code>.cfg</code> files). Salvage Shop writes the
+  defaults there the first time it runs, so there is always one to replace.
+  <b>No restart needed:</b> the file is re-read when it changes &mdash; the next gun built and the
+  next time the SALVAGE screen opens use it. An upgrade is stored as a count of steps, so
+  changing a stat's amount changes what every upgrade already bought is worth.</p>
+</header>
+
+<div class="layout">
+<div>
+  <section>
+    <h2>Presets</h2>
+    <div class="presets">
+      <div class="preset"><button type="button" data-preset="default">DEFAULT</button>
+        <div>The shipped rules. A scrap pays <b>2 Ex</b> and a <b>50%</b> chance of <b>1 Bond</b>;
+        scrapping an upgraded item refunds <b>100%</b> of what it cost. A step costs <b>n Ex</b> at
+        the item's step n, and Bond joins after step 5 (6-9: 1, 10-14: 2, 15: 3&hellip;).</div></div>
+      <div class="preset"><button type="button" data-preset="generous">GENEROUS</button>
+        <div>Faster upgrades: 3 Ex and a 75% chance of Bond a scrap, and Bond only from step 9.</div></div>
+      <div class="preset"><button type="button" data-preset="grind">GRIND</button>
+        <div>Slower: 1 Ex and a 25% chance of Bond a scrap, a half refund, and every step 2 Ex dearer
+        than the one before.</div></div>
+      <div class="preset"><button type="button" data-preset="test">TEST</button>
+        <div>For trying it out: 10 Ex and 2 Bond from every scrap, so two or three scraps buy a
+        handful of steps on anything.</div></div>
+    </div>
+  </section>
+
+  <section id="sec-scrap">
+    <h2>Scrap &mdash; what a weapon or gadget pays</h2>
+    <div class="grid">
+      <label class="f"><span>Ex a scrap</span><input type="number" min="0" step="1" data-path="scrap.exPerScrap" data-int></label>
+      <label class="f"><span>Bond a scrap</span><input type="number" min="0" step="1" data-path="scrap.bondPerScrap" data-int></label>
+      <label class="f"><span>Bond chance %</span><input type="number" min="0" max="100" step="5" data-path="scrap.bondChance"></label>
+      <label class="f"><span>refund of upgrades %</span><input type="number" min="0" max="100" step="5" data-path="scrap.refundPercent"></label>
+      <label class="f"><span>common scrap</span><select data-path="scrap.common">
+        <option value="Ex">Ex</option><option value="Bond">Bond</option><option value="Chip">Chip</option>
+        <option value="Coral">Fiber (Coral)</option><option value="Gland">Gland</option>
+        <option value="Powerstar">Powerstar</option><option value="Shell">Generator (Shell)</option></select></label>
+      <label class="f"><span>uncommon scrap</span><select data-path="scrap.uncommon">
+        <option value="Bond">Bond</option><option value="Ex">Ex</option><option value="Chip">Chip</option>
+        <option value="Coral">Fiber (Coral)</option><option value="Gland">Gland</option>
+        <option value="Powerstar">Powerstar</option><option value="Shell">Generator (Shell)</option></select></label>
+    </div>
+    <em>Every scrap pays the Ex, and the Bond on the chance. Scrapping is from the <b>vault</b>
+    only, and only weapons and gadgets. An item with salvage upgrades also hands back the refund %
+    of the Ex and Bond spent on it (rounded down), on top of its scrap. <b>Ex and Bond</b> are two
+    ingredients the game ships and never uses, so a save holding them loads with the mod off and
+    nothing else hands them out. The other five are the shop's own currencies &mdash; scrap paid in
+    one of those also feeds the shop. <b>Face</b> is left for the game and is not offered.</em>
+  </section>
+
+  <section id="sec-ladder">
+    <h2>The ladder &mdash; what a step costs</h2>
+    <div class="grid">
+      <label class="f"><span>Ex at step 1</span><input type="number" min="0" step="1" data-path="ladder.exStart" data-int></label>
+      <label class="f"><span>Ex added a step</span><input type="number" min="0" step="1" data-path="ladder.exPerStep" data-int></label>
+      <label class="f"><span>Bond from after step</span><input type="number" min="0" step="1" data-path="ladder.bondAfter" data-int></label>
+      <label class="f"><span>Bond every n steps</span><input type="number" min="1" step="1" data-path="ladder.bondEvery" data-int></label>
+      <label class="f"><span>Bond amount</span><input type="number" min="0" step="1" data-path="ladder.bondAmount" data-int></label>
+    </div>
+    <em>The ladder runs <b>per item</b>: each module counts its own steps, whichever stats they went
+    into, and a step is priced at that item's next step number. Ex is
+    <code>Ex at step 1 + added &times; (step &minus; 1)</code>. Bond is 0 up to and including the
+    "from after" step; after it, <code>step &divide; every</code> rounded down (never less than 1),
+    times the amount. No cap. Any stat below can carry its own ladder instead.</em>
+  </section>
+
+  <section id="sec-weapon">
+    <h2>Weapon and gadget stats</h2>
+    <div id="stats-weapon"></div>
+    <em>A step of one stat <b>adds up</b>, of the gun's own number: three +10% damage steps are
+    +30% of its hit. Only the stats that mean something on a gun are offered for it: no explosion
+    or spark on a beam or on the two gadgets that fire a unit (Field Generator, Teardrop); range is
+    the <b>lifetime</b> on a lobbed or rocket shot; speed raises a rocket's thrust too; a gadget's
+    fire rate is its <b>cooldown</b> and its reduce cost its activation cost. Reduce cost also cuts
+    the per-shot cost of every add-on module on that gun. On a gadget, ten steps stop at an
+    activation cost of 0.001, not 0: free in practice, and a gadget whose resource the ship has no
+    tank for still cannot fire, as in the stock game.</em>
+  </section>
+
+  <section id="sec-level">
+    <h2>Levels</h2>
+    <div id="stats-level"></div>
+    <em>+1 level on a shield, the Power Core, the augmentations that scale with level, and the drone
+    gadgets (a drone gadget's level is its drone count, so +1 level is +1 drone). The card shows it
+    as the game's own "+N" badge.</em>
+  </section>
+
+  <section id="sec-ship">
+    <h2>Ship upgrades &mdash; capacity and regen</h2>
+    <div id="stats-ship"></div>
+    <em>Any ship upgrade (the UP, REGEN and SHIELD modules) can take the capacity or the regen a
+    second of any of the seven resources. The defaults are the game's own step a level; Fuel and
+    Electron regen have no module in the game. Regen waits the resource's own delay after it last
+    went down (Health 2 s, Stamina 0.5 s, the rest 1.5 s).</em>
+  </section>
+
+  <section id="sec-addons">
+    <h2>The added explosion and spark</h2>
+    <div class="grid">
+      <label class="f"><span>explosion cost a shot</span><input type="number" min="0" step="0.5" data-path="addOns.explosionCost"></label>
+      <label class="f"><span>explosion pays in</span><select data-path="addOns.explosionResource">
+        <option>health</option><option>fuel</option><option>gel</option><option selected>caps</option>
+        <option>stamina</option><option>tech</option><option>electron</option></select></label>
+      <label class="f"><span>spark cost a shot</span><input type="number" min="0" step="1" data-path="addOns.sparkCost" data-int></label>
+      <label class="f"><span>spark pays in</span><select data-path="addOns.sparkResource">
+        <option>health</option><option>fuel</option><option>gel</option><option>caps</option>
+        <option>stamina</option><option>tech</option><option selected>electron</option></select></label>
+    </div>
+    <label class="c" style="margin-top:10px"><input type="checkbox" data-path="addOns.explodeAtRange">
+      a plain shot also explodes where it reaches its range</label>
+    <em>An added explosion or spark goes off <b>on hit</b> and when a <b>timed shot expires</b>, the
+    same as the game's own add-ons; with the box above, a plain shot's explosion also goes off at its
+    range (the game has no spark-at-range switch). It costs nothing a shot by default &mdash; it was
+    bought with scrap. A shot that cannot pay simply fires without it, the way a game add-on does when
+    its tank runs dry. The explosion is in the gun's own damage type.</em>
+  </section>
+</div>
+
+<div>
+  <section>
+    <h2>Prices</h2>
+    <label class="f" style="max-width:280px;margin-bottom:8px"><span>a stat's own ladder beside the shared one</span>
+      <select id="price-stat"></select></label>
+    <table id="prices">
+      <thead><tr><th>step</th><th>shared</th><th>this stat</th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <div id="said"></div>
+  </section>
+
+  <section>
+    <h2>The file</h2>
+    <pre id="output"></pre>
+    <div class="row" style="margin-top:10px">
+      <button type="button" id="b-copy">COPY</button>
+      <button type="button" id="b-save">SAVE .JSON</button>
+      <label style="font-size:12px;color:var(--dim)">LOAD .JSON
+        <input type="file" id="b-load" accept=".json,application/json"></label>
+    </div>
+    <em>Save it as <code>com.sugarheady.gamemodeforge.salvageshop.rules.json</code> in
+    <b>BepInEx\config</b>, replacing the one there. A file that is not valid JSON is refused: the
+    shop keeps the last rules that read and the SALVAGE screen says so.</em>
+  </section>
+
+  <section>
+    <h2>In the game</h2>
+    <ul>
+      <li>At a station, the grid tab's right panel has a third sub-tab, <b>SALVAGE</b>, beside
+      SHOP and VAULT. It has two modes, <b>SALVAGE</b> and <b>UPGRADE</b>, and one slot. Drag a
+      module into the slot (anywhere on the panel works); the vault stays on screen under it.</li>
+      <li><b>Pad:</b> RT steps VAULT &rarr; SHOP &rarr; SALVAGE (LT back), and on SALVAGE switches the
+      mode. <b>A</b> sends the highlighted module to the slot, the stick picks a stat, <b>Y</b>
+      confirms, <b>B</b> takes it out, <b>X</b> ticks quick salvage.</li>
+      <li><b>Mouse and keys:</b> click a stat to pick it and again to buy it (or <b>R</b>);
+      right-click the slot (or <b>X</b>) to take it out; <b>G</b> switches the mode, <b>C</b> ticks
+      quick salvage.</li>
+      <li><b>QUICK SALVAGE</b> skips the "salvage it?" ask &mdash; never for an upgraded item or a
+      ranked gun (Weapon Forge), which always ask. It lives in
+      <code>com.sugarheady.gamemodeforge.salvageshop.cfg</code>.</li>
+      <li>The <b>GAME MODE FORGE</b> tab in Options has the on/off, <b>Scrap refund of upgrades</b>,
+      <b>Bond chance a scrap</b>, <b>Ex a scrap</b> and <b>Quick salvage</b>. The three numbers write
+      this same file; everything else here is kept.</li>
+      <li>Upgrades are saved beside the save (<code>salvage.txt</code>) and carry across a New Game
+      Plus jump with their items.</li>
+    </ul>
+  </section>
+</div>
+</div>
+
+<!-- The stats, as plain JSON so a harness can read them without a browser.
+     "two" names the second amount (explosion radius, spark chain). -->
+<script type="application/json" id="stats">
+[
+  { "id": "damage",      "group": "weapon", "name": "Damage (the hit)",     "unit": "% a step" },
+  { "id": "explosion",   "group": "weapon", "name": "Explosion",            "unit": "damage a step", "one": "damage", "two": "radius" },
+  { "id": "spark",       "group": "weapon", "name": "Spark",                "unit": "damage a step", "one": "damage", "two": "chain" },
+  { "id": "fireRate",    "group": "weapon", "name": "Fire rate (gadget: cooldown)", "unit": "% a step" },
+  { "id": "range",       "group": "weapon", "name": "Range (timed shot: lifetime)", "unit": "% a step" },
+  { "id": "speed",       "group": "weapon", "name": "Projectile speed",     "unit": "% a step" },
+  { "id": "spread",      "group": "weapon", "name": "Spread (less)",        "unit": "% a step" },
+  { "id": "projectiles", "group": "weapon", "name": "Projectiles",          "unit": "a step" },
+  { "id": "cost",        "group": "weapon", "name": "Reduce cost",          "unit": "% a step" },
+  { "id": "level",       "group": "level",  "name": "Level",                "unit": "levels a step" },
+  { "id": "cap.health",  "group": "ship", "name": "Health capacity",   "unit": "a step" },
+  { "id": "cap.fuel",    "group": "ship", "name": "Fuel capacity",     "unit": "a step" },
+  { "id": "cap.gel",     "group": "ship", "name": "Gel capacity",      "unit": "a step" },
+  { "id": "cap.caps",    "group": "ship", "name": "Caps capacity",     "unit": "a step" },
+  { "id": "cap.stamina", "group": "ship", "name": "Stamina capacity",  "unit": "a step" },
+  { "id": "cap.tech",    "group": "ship", "name": "Tech capacity",     "unit": "a step" },
+  { "id": "cap.electron","group": "ship", "name": "Electron capacity", "unit": "a step" },
+  { "id": "regen.health",  "group": "ship", "name": "Health regen",   "unit": "/s a step" },
+  { "id": "regen.fuel",    "group": "ship", "name": "Fuel regen",     "unit": "/s a step" },
+  { "id": "regen.gel",     "group": "ship", "name": "Gel regen",      "unit": "/s a step" },
+  { "id": "regen.caps",    "group": "ship", "name": "Caps regen",     "unit": "/s a step" },
+  { "id": "regen.stamina", "group": "ship", "name": "Stamina regen",  "unit": "/s a step" },
+  { "id": "regen.tech",    "group": "ship", "name": "Tech regen",     "unit": "/s a step" },
+  { "id": "regen.electron","group": "ship", "name": "Electron regen", "unit": "/s a step" }
+]
+</script>
+
+<!-- The presets, as plain JSON so a harness can read them without a browser.
+     A stat a preset does not name keeps the DEFAULT preset's numbers. -->
+<script type="application/json" id="presets">
+{
+  "default": {
+    "version": 1,
+    "scrap": { "common": "Ex", "uncommon": "Bond", "exPerScrap": 2, "bondPerScrap": 1, "bondChance": 50, "refundPercent": 100 },
+    "ladder": { "exStart": 1, "exPerStep": 1, "bondAfter": 5, "bondEvery": 5, "bondAmount": 1 },
+    "addOns": { "explosionCost": 0, "explosionResource": "caps", "sparkCost": 0, "sparkResource": "electron", "explodeAtRange": false },
+    "stats": {
+      "damage": { "enabled": true, "amount": 10 },
+      "explosion": { "enabled": true, "damage": 1, "radius": 0.5 },
+      "spark": { "enabled": true, "damage": 1, "chain": 1 },
+      "fireRate": { "enabled": true, "amount": 10 },
+      "range": { "enabled": true, "amount": 10 },
+      "speed": { "enabled": true, "amount": 10 },
+      "spread": { "enabled": true, "amount": 10 },
+      "projectiles": { "enabled": true, "amount": 1 },
+      "cost": { "enabled": true, "amount": 10 },
+      "level": { "enabled": true, "amount": 1 },
+      "cap.health": { "enabled": true, "amount": 1 },
+      "cap.fuel": { "enabled": true, "amount": 1 },
+      "cap.gel": { "enabled": true, "amount": 1 },
+      "cap.caps": { "enabled": true, "amount": 1 },
+      "cap.stamina": { "enabled": true, "amount": 1 },
+      "cap.tech": { "enabled": true, "amount": 1 },
+      "cap.electron": { "enabled": true, "amount": 2 },
+      "regen.health": { "enabled": true, "amount": 0.05 },
+      "regen.fuel": { "enabled": true, "amount": 0.05 },
+      "regen.gel": { "enabled": true, "amount": 0.05 },
+      "regen.caps": { "enabled": true, "amount": 0.05 },
+      "regen.stamina": { "enabled": true, "amount": 2 },
+      "regen.tech": { "enabled": true, "amount": 0.01 },
+      "regen.electron": { "enabled": true, "amount": 0.1 }
+    }
+  },
+  "generous": {
+    "scrap": { "common": "Ex", "uncommon": "Bond", "exPerScrap": 3, "bondPerScrap": 1, "bondChance": 75, "refundPercent": 100 },
+    "ladder": { "exStart": 1, "exPerStep": 1, "bondAfter": 8, "bondEvery": 5, "bondAmount": 1 }
+  },
+  "grind": {
+    "scrap": { "common": "Ex", "uncommon": "Bond", "exPerScrap": 1, "bondPerScrap": 1, "bondChance": 25, "refundPercent": 50 },
+    "ladder": { "exStart": 1, "exPerStep": 2, "bondAfter": 5, "bondEvery": 5, "bondAmount": 1 }
+  },
+  "test": {
+    "scrap": { "common": "Ex", "uncommon": "Bond", "exPerScrap": 10, "bondPerScrap": 2, "bondChance": 100, "refundPercent": 100 }
+  }
+}
+</script>
+
+<script>
+(function () {
+  "use strict";
+
+  var STATS = JSON.parse(document.getElementById("stats").textContent);
+  var PRESETS = JSON.parse(document.getElementById("presets").textContent);
+  var LADDER = ["exStart", "exPerStep", "bondAfter", "bondEvery", "bondAmount"];
+  var LADDER_LABEL = { exStart: "own: Ex at step 1", exPerStep: "own: Ex added", bondAfter: "own: Bond after step",
+                       bondEvery: "own: Bond every", bondAmount: "own: Bond amount" };
+
+  // ---- one block per stat, from the list above ------------------------
+  STATS.forEach(function (s) {
+    var host = document.getElementById("stats-" + s.group);
+    var d = document.createElement("details");
+    d.className = "stat";
+    d.setAttribute("data-stat", s.id);
+    var one = s.one || "amount";
+    var html = "<summary>" + s.name + "<small></small></summary>" +
+      "<label class=c style='margin-top:8px'><input type=checkbox data-path='stats." + s.id + ".enabled'> in the pool</label>" +
+      "<div class=grid>" +
+      "<label class=f><span>" + (s.one ? s.one + " a step" : s.unit) + "</span>" +
+      "<input type=number min=0 step=any data-path='stats." + s.id + "." + one + "'></label>" +
+      (s.two ? "<label class=f><span>" + s.two + " a step</span><input type=number min=0 step=any data-path='stats." +
+               s.id + "." + s.two + "'></label>" : "") +
+      "</div><div class='grid own'>";
+    LADDER.forEach(function (k) {
+      html += "<label class=f><span>" + LADDER_LABEL[k] + "</span><input type=number min=0 step=1 placeholder=shared " +
+              "data-optional data-int data-path='stats." + s.id + ".ladder." + k + "'></label>";
+    });
+    html += "</div><em>Leave a ladder box empty to use the shared ladder for that part.</em>";
+    d.innerHTML = html;
+    host.appendChild(d);
+
+    var o = document.createElement("option");
+    o.value = s.id;
+    o.textContent = s.name;
+    document.getElementById("price-stat").appendChild(o);
+  });
+
+  var fields = Array.prototype.slice.call(document.querySelectorAll("[data-path]"));
+
+  function num(v, d) {
+    var n = parseFloat(v);
+    return isFinite(n) ? n : d;
+  }
+
+  function set(obj, path, v) {
+    var parts = path.split(".");
+    // A stat id has a dot in it ("cap.health"): stats.<id>.<key>[.<key>].
+    if (parts[0] === "stats") {
+      var id = parts.length > 3 && parts[parts.length - 2] === "ladder" ? parts.slice(1, parts.length - 2).join(".")
+             : parts.slice(1, parts.length - 1).join(".");
+      var rest = parts.length > 3 && parts[parts.length - 2] === "ladder" ? ["ladder", parts[parts.length - 1]]
+             : [parts[parts.length - 1]];
+      parts = ["stats", id].concat(rest);
+    }
+    var o = obj;
+    for (var i = 0; i < parts.length - 1; i++) {
+      if (!(parts[i] in o)) o[parts[i]] = {};
+      o = o[parts[i]];
+    }
+    o[parts[parts.length - 1]] = v;
+  }
+
+  function get(obj, path) {
+    var parts = path.split(".");
+    if (parts[0] === "stats") {
+      var ladder = parts.length > 3 && parts[parts.length - 2] === "ladder";
+      var id = ladder ? parts.slice(1, parts.length - 2).join(".") : parts.slice(1, parts.length - 1).join(".");
+      var s = (obj.stats || {})[id];
+      if (s === undefined) return undefined;
+      if (typeof s === "number") return parts[parts.length - 1] === "amount" ? s : undefined;
+      if (ladder) return (s.ladder || {})[parts[parts.length - 1]];
+      return s[parts[parts.length - 1]];
+    }
+    var o = obj;
+    for (var i = 0; i < parts.length; i++) {
+      if (o === undefined || o === null) return undefined;
+      o = o[parts[i]];
+    }
+    return o;
+  }
+
+  // ---- the file -------------------------------------------------------
+  function build() {
+    var out = { version: 1 };
+
+    fields.forEach(function (el) {
+      var path = el.getAttribute("data-path");
+      var v;
+      if (el.type === "checkbox") v = el.checked;
+      else if (el.tagName === "SELECT") v = el.value;
+      else {
+        if (el.hasAttribute("data-optional") && String(el.value).trim() === "") return;
+        v = num(el.value, 0);
+        if (el.hasAttribute("data-int")) v = Math.round(v);
+        if (v < 0) v = 0;
+      }
+      set(out, path, v);
+    });
+
+    return out;
+  }
+
+  function fill(obj) {
+    var base = JSON.parse(JSON.stringify(PRESETS["default"]));
+    fields.forEach(function (el) {
+      var path = el.getAttribute("data-path");
+      var v = get(obj, path);
+      if (v === undefined && !el.hasAttribute("data-optional")) v = get(base, path);
+      if (el.type === "checkbox") el.checked = !!v;
+      else if (el.tagName === "SELECT") {
+        // Match an option whatever its case ("Caps" and "caps" are one resource).
+        var want = String(v === undefined || v === null ? "" : v).toLowerCase();
+        var hit = Array.prototype.filter.call(el.options, function (o) { return o.value.toLowerCase() === want; })[0];
+        el.value = hit ? hit.value : el.options[0].value;
+      }
+      else el.value = v === undefined || v === null ? "" : v;
+    });
+    refresh();
+  }
+
+  // ---- the same arithmetic as SalvageMath.ExAt / BondAt in the DLL ------
+  function exAt(l, step) {
+    if (step < 1) return 0;
+    return Math.max(0, l.exStart + l.exPerStep * (step - 1));
+  }
+
+  function bondAt(l, step) {
+    if (step < 1 || step <= l.bondAfter || l.bondAmount <= 0) return 0;
+    var every = Math.max(1, l.bondEvery);
+    return Math.max(1, Math.floor(step / every)) * l.bondAmount;
+  }
+
+  function ladderOf(r, id) {
+    var l = JSON.parse(JSON.stringify(r.ladder));
+    var own = ((r.stats || {})[id] || {}).ladder || {};
+    LADDER.forEach(function (k) { if (k in own) l[k] = own[k]; });
+    return l;
+  }
+
+  function price(l, step, r) {
+    var ex = exAt(l, step), bond = bondAt(l, step);
+    if (ex <= 0 && bond <= 0) return "free";
+    return (ex > 0 ? ex + " " + r.scrap.common : "") + (bond > 0 ? (ex > 0 ? " + " : "") + bond + " " + r.scrap.uncommon : "");
+  }
+
+  function refresh() {
+    var r = build();
+
+    Array.prototype.forEach.call(document.querySelectorAll("details.stat"), function (d) {
+      var id = d.getAttribute("data-stat");
+      var s = r.stats[id] || {};
+      d.classList.toggle("off", !s.enabled);
+      var own = s.ladder && Object.keys(s.ladder).length > 0;
+      var meta = STATS.filter(function (x) { return x.id === id; })[0];
+      var a = meta.one ? s[meta.one] : s.amount;
+      d.querySelector("summary small").textContent = (s.enabled ? "+" + a + (meta.two ? " / +" + s[meta.two] : "") +
+        " " + meta.unit : "not offered") + (own ? " - own ladder" : "");
+    });
+
+    var pick = document.getElementById("price-stat").value || "damage";
+    var shared = r.ladder, mine = ladderOf(r, pick);
+    var body = document.querySelector("#prices tbody");
+    body.innerHTML = "";
+    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 15, 20, 25, 30].forEach(function (step) {
+      var tr = document.createElement("tr");
+      [String(step), price(shared, step, r), price(mine, step, r)].forEach(function (text) {
+        var td = document.createElement("td");
+        td.textContent = text;
+        if (text === "free") td.className = "zero";
+        tr.appendChild(td);
+      });
+      body.appendChild(tr);
+    });
+
+    var said = [];
+    if (r.scrap.common === r.scrap.uncommon)
+      said.push("<span class=warn>Common and uncommon scrap are the same ingredient - every scrap and price is then one currency.</span>");
+    ["common", "uncommon"].forEach(function (k) {
+      if (r.scrap[k] !== "Ex" && r.scrap[k] !== "Bond")
+        said.push("<span class=warn>" + r.scrap[k] + " is one of the shop's own currencies: scrap paid in it also buys shop items, and a save stays loadable.</span>");
+    });
+    if (r.scrap.exPerScrap <= 0 && (r.scrap.bondPerScrap <= 0 || r.scrap.bondChance <= 0))
+      said.push("<span class=warn>A scrap pays nothing at all (only refunds).</span>");
+    if (r.scrap.bondChance <= 0 || r.scrap.bondPerScrap <= 0)
+      said.push("<span class=warn>No Bond from scrapping - past step " + r.ladder.bondAfter + " only refunds can pay for a step.</span>");
+    var none = STATS.filter(function (s) { return s.group === "weapon" && r.stats[s.id] && r.stats[s.id].enabled; }).length === 0;
+    if (none) said.push("<span class=warn>No weapon stat is in the pool - a weapon cannot be upgraded.</span>");
+    if (r.addOns.explosionCost > 0 || r.addOns.sparkCost > 0)
+      said.push("<span class=ok>An added explosion or spark costs " + (r.addOns.explosionCost > 0 ? r.addOns.explosionCost + " " + r.addOns.explosionResource : "") +
+                (r.addOns.explosionCost > 0 && r.addOns.sparkCost > 0 ? " / " : "") +
+                (r.addOns.sparkCost > 0 ? r.addOns.sparkCost + " " + r.addOns.sparkResource : "") + " a shot; reduce cost cuts it.</span>");
+    document.getElementById("said").innerHTML = said.join("<br>");
+
+    document.getElementById("output").textContent = JSON.stringify(r, null, 2);
+  }
+
+  fields.forEach(function (el) {
+    el.addEventListener("input", refresh);
+    el.addEventListener("change", refresh);
+  });
+  document.getElementById("price-stat").addEventListener("change", refresh);
+
+  Array.prototype.forEach.call(document.querySelectorAll("[data-preset]"), function (b) {
+    b.addEventListener("click", function () {
+      fill(JSON.parse(JSON.stringify(PRESETS[b.getAttribute("data-preset")])));
+    });
+  });
+
+  document.getElementById("b-copy").addEventListener("click", function () {
+    var text = document.getElementById("output").textContent;
+    if (navigator.clipboard) navigator.clipboard.writeText(text);
+  });
+
+  document.getElementById("b-save").addEventListener("click", function () {
+    var blob = new Blob([document.getElementById("output").textContent], { type: "application/json" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "com.sugarheady.gamemodeforge.salvageshop.rules.json";
+    a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+  });
+
+  document.getElementById("b-load").addEventListener("change", function (e) {
+    var f = e.target.files && e.target.files[0];
+    if (!f) return;
+    var reader = new FileReader();
+    reader.onload = function () {
+      try {
+        fill(JSON.parse(reader.result));
+      } catch (err) {
+        document.getElementById("said").innerHTML =
+          "<span class=warn>That file is not valid JSON: " + err.message + "</span>";
+      }
+    };
+    reader.readAsText(f);
+    e.target.value = "";
+  });
+
+  fill(JSON.parse(JSON.stringify(PRESETS["default"])));
+})();
+</script>
+</body>
+</html>
