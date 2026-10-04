@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{D4A17C52-8E36-4B0F-A1C9-6E2B9F05D713}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <!-- ★ The namespace starts with GameModeForge. on purpose: Game Mode
+         Forge's log copies any GAME error whose stack trace has a frame
+         starting "GameModeForge.", so a throw out of one of these patches
+         lands in GameModeForge.log with no code of its own. -->
+    <RootNamespace>GameModeForge.NewGamePlus</RootNamespace>
+    <AssemblyName>NewGamePlus</AssemblyName>
+    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <Deterministic>true</Deterministic>
+    <!-- Keeps the builder's absolute paths OUT of the shipped DLL - the same
+         line, for the same reason, as the other two csproj files beside it.
+         These repos are public. Please leave it in. -->
+    <PathMap>$(MSBuildProjectDirectory)=.</PathMap>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <!-- $(PunkManaged) and $(PunkCore) come from Directory.Build.props at the
+       repo root, exactly as for the other two projects - see BUILDING.md.
+
+       ★ NO REFERENCE TO GameModeForge, WeaponForge OR ANY SIBLING. This DLL
+       must build and run with every other mod absent. It finds Game Mode
+       Forge's log by TYPE NAME at run time (NgLog), and Weapon Forge finds
+       IT the same way (NgCarry) - never the other way round.
+
+       TextMeshPro is reached by reflection (NgUi.SetText), the house idiom in
+       all three repos, to keep the reference surface small. -->
+  <ItemGroup>
+    <Reference Include="0Harmony">
+      <HintPath>$(PunkCore)\0Harmony.dll</HintPath>
+    </Reference>
+    <Reference Include="BepInEx.Core">
+      <HintPath>$(PunkCore)\BepInEx.Core.dll</HintPath>
+    </Reference>
+    <Reference Include="BepInEx.Unity.Mono">
+      <HintPath>$(PunkCore)\BepInEx.Unity.Mono.dll</HintPath>
+    </Reference>
+    <!-- MinMaxFloat: a burn's range, read when enemy damage records who lit
+         a victim (NgDamage). -->
+    <Reference Include="MyBox">
+      <HintPath>$(PunkManaged)\MyBox.dll</HintPath>
+    </Reference>
+    <Reference Include="Newtonsoft.Json">
+      <HintPath>$(PunkManaged)\Newtonsoft.Json.dll</HintPath>
+    </Reference>
+    <Reference Include="Punk.Main">
+      <HintPath>$(PunkManaged)\Punk.Main.dll</HintPath>
+    </Reference>
+    <Reference Include="ServiceLocator">
+      <HintPath>$(PunkManaged)\ServiceLocator.dll</HintPath>
+    </Reference>
+    <!-- The save's own serializer. A carried grid, vault and run record go
+         through it on the way to the new world, so what arrives is exactly
+         what a save would have written - a detached copy, never a live
+         object from the scene that is being unloaded. -->
+    <Reference Include="Sirenix.Serialization">
+      <HintPath>$(PunkManaged)\Sirenix.Serialization.dll</HintPath>
+    </Reference>
+    <!-- DataFormat.Binary lives here, not in Sirenix.Serialization. -->
+    <Reference Include="Sirenix.Serialization.Config">
+      <HintPath>$(PunkManaged)\Sirenix.Serialization.Config.dll</HintPath>
+    </Reference>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <!-- InputActionReference: the pause menu's own Back key closes WORLD INFO. -->
+    <Reference Include="Unity.InputSystem">
+      <HintPath>$(PunkManaged)\Unity.InputSystem.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine">
+      <HintPath>$(PunkManaged)\UnityEngine.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>$(PunkManaged)\UnityEngine.CoreModule.dll</HintPath>
+    </Reference>
+    <!-- Collider2D: the opt-in marker sits just above an enemy's collider. -->
+    <Reference Include="UnityEngine.Physics2DModule">
+      <HintPath>$(PunkManaged)\UnityEngine.Physics2DModule.dll</HintPath>
+    </Reference>
+    <!-- Button, Selectable and EventSystem: the new buttons, and the pause
+         buttons locked while WORLD INFO is open over them. -->
+    <Reference Include="UnityEngine.UI">
+      <HintPath>$(PunkManaged)\UnityEngine.UI.dll</HintPath>
+    </Reference>
+    <!-- Canvas: WORLD INFO is drawn above the pause menu. -->
+    <Reference Include="UnityEngine.UIModule">
+      <HintPath>$(PunkManaged)\UnityEngine.UIModule.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="NewGamePlusPlugin.cs" />
+    <Compile Include="NgCarry.cs" />
+    <Compile Include="NgBuffs.cs" />
+    <Compile Include="NgDamage.cs" />
+    <Compile Include="NgJump.cs" />
+    <Compile Include="NgLog.cs" />
+    <Compile Include="NgMath.cs" />
+    <Compile Include="NgPause.cs" />
+    <Compile Include="NgRules.cs" />
+    <Compile Include="NgRun.cs" />
+    <Compile Include="NgSettings.cs" />
+    <Compile Include="NgTab.cs" />
+    <Compile Include="NgUi.cs" />
+    <Compile Include="NgVictory.cs" />
+    <Compile Include="NgWorldInfo.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+</Project>
