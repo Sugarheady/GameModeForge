@@ -26,8 +26,7 @@ namespace GameModeForge.SalvageShop
     //     (com.sugarheady.gamemodeforge.salvageshop.cfg), and the gate returns
     //     above every patch.
     //   - it is one more row in Game Mode Forge's settings tab (and its refund,
-    //     Bond chance, Ex per scrap and quick salvage are rows there too -
-    //     SalvageTab).
+    //     Bond chance and Ex per scrap are rows there too - SalvageTab).
     //   - its in-game lines go to GameModeForge.log when Game Mode Forge is
     //     installed, and to SalvageShop.log when it is not (SalvageLog).
     //   - AffectsSaves is false (3.8): the scrap is two stock ingredients and the
@@ -47,32 +46,14 @@ namespace GameModeForge.SalvageShop
         // True once the patches are in. Every patch asks this first.
         internal static bool Active;
 
-        // The SALVAGE screen's QUICK SALVAGE tickbox (14.1: "an option or
-        // tickbox in the menu to disable the confirm salvage for quick
-        // salvage"), remembered here. Off - asking - is the default.
-        internal static ConfigEntry<bool> QuickSalvage;
-
-        internal static bool Quick
-        {
-            get { return QuickSalvage != null && QuickSalvage.Value; }
-        }
-
-        internal static bool SetQuick(bool on, string from)
-        {
-            if (QuickSalvage == null)
-                return false;
-
-            if (QuickSalvage.Value != on)
-            {
-                // BepInEx saves the cfg on every set (SaveOnConfigSet).
-                QuickSalvage.Value = on;
-                Log.LogInfo("quick salvage " + (on ? "ON" : "OFF") + " (from " + from + ") - " +
-                            (on ? "a scrap no longer asks, except for an upgraded item or a ranked gun."
-                                : "a scrap asks to confirm."));
-            }
-
-            return true;
-        }
+        // ★ QUICK SALVAGE IS GONE (R21 part 3, his call on 327): "we're good to
+        // remove Quick Salvage. I dont like how this plays and with the bug
+        // feels like this could be abused ... keep the confirmation." The bug:
+        // a quick scrap took the item out of the vault while the mouse was
+        // still carrying it, so it could be put back on the grid and the Ex
+        // kept. Every scrap asks now, and a confirmed scrap is the only way an
+        // item leaves (SalvagePanel.Scrap). A `QuickSalvage` line left in an
+        // old .cfg is ignored.
 
         private void Awake()
         {
@@ -92,14 +73,6 @@ namespace GameModeForge.SalvageShop
                     "  (if this is older than the change you are testing, the DLL did not get copied)");
             }
             catch { }
-
-            // Bound above the gate - it patches nothing - so Game Mode Forge's
-            // tab can still show and change it on a launch that has Salvage
-            // Shop switched off.
-            QuickSalvage = Config.Bind("Salvage", "QuickSalvage", false,
-                "Off (the default): dropping a module into the SALVAGE slot asks to confirm before it is " +
-                "scrapped. On: it is scrapped at once - except an upgraded item or a ranked gun, which " +
-                "always asks. The tickbox on the SALVAGE screen and Game Mode Forge's tab both write this.");
 
             // ---- THE GATE ------------------------------------------------
             //

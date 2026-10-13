@@ -12,6 +12,27 @@ namespace GameModeForge.SalvageShop
     // not worth a dependency between two DLLs).
     internal static class SalvageUi
     {
+        // ---- the game's own sprites, by name -------------------------------
+
+        // A loaded sprite asset by its exact name, or null. The menu sprites
+        // are loaded whenever the grid screen is (its own frames use them).
+        // Prefabs and assets are both in FindObjectsOfTypeAll; a sprite has no
+        // scene, so there is nothing to filter.
+        internal static Sprite FindSprite(string name)
+        {
+            try
+            {
+                foreach (Sprite s in Resources.FindObjectsOfTypeAll<Sprite>())
+                    if (s != null && s.name == name)
+                        return s;
+            }
+            catch (Exception)
+            {
+            }
+
+            return null;
+        }
+
         // ---- TextMeshPro, by reflection (the house idiom) -----------------
 
         private static Type _tmp;

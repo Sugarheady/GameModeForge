@@ -371,7 +371,11 @@ namespace GameModeForge.SalvageShop
                 burn = new FloatSeries { baseValue = 0f, change = 0f },
                 explosionRadiusIncrement = s.amount2 * n,
                 addImpactExplosion = true,      // on hit ...
-                addTimeoutExplosion = true,     // ... and when a timed shot expires (16.3)
+                // ... and when a TIMED shot expires (16.3). Never the game's
+                // addTimeoutExplosion: that switches a lifetime ON, at 0 s on
+                // a Popper - SalvageAddOns.OnTimedExpiry (R21 part 3, 329).
+                addTimeoutExplosion = false,
+                onTimedExpiry = true,
                 atRange = r.explodeAtRange,     // and, with the setting, at a plain shot's range (18.1)
                 realCost = SalvageMath.CostAfter(r.explosionCost, costPct, costSteps),
                 realResource = SalvageCatalog.ResourceFor(r.explosionResource),
@@ -413,7 +417,10 @@ namespace GameModeForge.SalvageShop
                 damageIncrement = new FloatSeries { baseValue = s.amount * n, change = 0f },
                 chainLengthIncrement = Mathf.RoundToInt(s.amount2 * n),
                 impact = true,
-                timeout = true,
+                // A TIMED shot only (16.3) - the game's `timeout` switches a
+                // lifetime on at 0 s and ends a Popper at its muzzle.
+                timeout = false,
+                onTimedExpiry = true,
                 realCost = SalvageMath.IntCostAfter(r.sparkCost, costPct, costSteps),
                 realResource = SalvageCatalog.ResourceFor(r.sparkResource),
                 costResource = SalvageCatalog.ResourceFor(r.sparkResource),

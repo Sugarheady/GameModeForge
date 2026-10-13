@@ -21,7 +21,7 @@ namespace GameModeForge.SalvageShop
     //   ModuleGridInput.OnConfirmPressed the pad's A sends a module to the slot
     //   ModuleGridInput.SelectShop/Vault RT / LT step VAULT <-> SHOP <-> SALVAGE;
     //                                    RT on SALVAGE switches the mode
-    //   ModuleGridInput.OnUnequip        X on the SALVAGE tab: quick salvage
+    //   ModuleGridInput.OnUnequip        X on the SALVAGE tab: takes the module out
     //   ModuleGridInput.OnRightMouseDown a right-click on the slot takes it out
     //   ModuleGridInput.OnUpdate         the confirm key: pad Y / keyboard R
     internal static class SalvageScreen
@@ -290,8 +290,10 @@ namespace GameModeForge.SalvageShop
             }
         }
 
-        // X (pad Unequip). On the SALVAGE tab it ticks QUICK SALVAGE - unless
-        // the grid is the active widget, where it unequips as it always has.
+        // X (pad Unequip). On the SALVAGE tab it takes the module out of the
+        // slot, like the keyboard's X - unless the grid is the active widget,
+        // where it unequips as it always has. (It ticked QUICK SALVAGE until
+        // R21 part 3, when quick salvage was removed at his call.)
         [HarmonyPatch(typeof(ModuleGridInput), "OnUnequip")]
         public class OnUnequip
         {
@@ -307,7 +309,7 @@ namespace GameModeForge.SalvageShop
                     if (p.Active is ModuleGridWidget)
                         return true;
 
-                    p.ToggleQuick();
+                    p.TakeOut();
                     return false;
                 }
                 catch (Exception)

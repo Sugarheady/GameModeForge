@@ -20,8 +20,9 @@ namespace GameModeForge.SalvageShop
     //
     //   SALVAGE   drop a weapon or gadget from the vault into the slot; it asks
     //             to confirm (it does NOT say what you will get), then scraps it
-    //             for Ex and maybe Bond. QUICK SALVAGE skips the ask - except for
-    //             an upgraded item or a ranked gun, which always asks.
+    //             for Ex and maybe Bond. An upgraded item or a ranked gun asks
+    //             twice. (QUICK SALVAGE, which skipped the ask, was removed in
+    //             R21 part 3 at his call - see SalvageShopPlugin.)
     //   UPGRADE   drop any module you own (vault or equipped) into the slot; it
     //             stays there while you buy as many steps as you like, picking
     //             a stat a step, and goes back where it came from (it never left).
@@ -80,6 +81,20 @@ namespace GameModeForge.SalvageShop
         private HoveredModuleInfo _hovered;
         private Image _vaultTab, _shopTab, _myTab;
         private Sprite _selBg, _unselBg;
+
+        // ★ R21 PART 3, 325: "The buttons that say salvage and upgrade ... are
+        // missing the bottom line of the button. They look like tabs when they
+        // should probably be buttons ... Also the grid that you place your
+        // salvage or upgrade is missing the bottom line as well." They were
+        // drawn with the TAB sprites (MainMenu_placeholders_11 / _12, measured
+        // off the atlas: a frame with no bottom edge, which is right for a tab
+        // and wrong for anything else). Now the mode buttons use the game's
+        // own BUTTON sprite (_3, the pause and main menu buttons' ButtonBody)
+        // and the slot and panel the VAULT's own frame (_10, closed on all four
+        // sides). Found by name; the tab sprites stay the fallback.
+        private Sprite _buttonBg, _frameBg;
+        private const string ButtonSpriteName = "MainMenu_placeholders_3";
+        private const string FrameSpriteName = "MainMenu_placeholders_10";
         private GameObject _tabButton, _root;
         private RectTransform _vaultRect;
         private Vector2 _vaultTop;
@@ -87,12 +102,12 @@ namespace GameModeForge.SalvageShop
         private Image[] _modeImages = new Image[2];
         private ModuleIconWidget _icon;
         private Image _iconFallback;
-        private Component _title, _status, _quick, _footer;
+        private Component _title, _status, _footer;
         private readonly List<Component> _rows = new List<Component>();
 
-        // Everything on the panel that takes a click (the mode buttons, the
-        // quick salvage line, the stat lines), switched off while a module is
-        // carried - see TakesClicks.
+        // Everything on the panel that takes a click (the mode buttons and the
+        // stat lines), switched off while a module is carried - see
+        // TakesClicks.
         private readonly List<CanvasGroup> _clickables = new List<CanvasGroup>();
         private bool _clickOn = true;
 
@@ -116,8 +131,39 @@ namespace GameModeForge.SalvageShop
         private string _note;          // the last thing that happened, until the next slot
         private bool _noteBad;
 
-        private const int VisibleRows = 5;
-        private const float PanelHeight = 384f;
+        // ★ R21: "the upgrade list only displays the following: Damage,
+        // Explosion, Spark, Fire rate, and range. Even though Projectile speed,
+        // Spread, Projectiles, and reduce cost are enabled in the list. Maybe
+        // add an option to move the mouse wheel or expand the menu down a bit
+        // to cover the Vault more." Five rows, and nothing but the pad's
+        // up / down could reach a sixth. Both, now: UPGRADE shows NINE rows -
+        // every weapon stat at once - the mouse wheel scrolls anything longer
+        // (a ship upgrade can be offered fifteen), and SALVAGE, which only
+        // ever uses the first row, is SHORTER, so more of the vault you drag
+        // from shows under it. Layout() sizes the panel for the mode.
+        private const int UpgradeRows = 9;
+        private const int SalvageRows = 1;
+        private const float RowsTop = 224f;
+        private const float RowStep = 28f;
+
+        private int Rows
+        {
+            get { return Mode == SalvageMode.Upgrade ? UpgradeRows : SalvageRows; }
+        }
+
+        // Rows, then the footer (4 below the last row, 28 high), then a margin.
+        private static float HeightFor(int rows)
+        {
+            return RowsTop + rows * RowStep + 4f + 28f + 8f;
+        }
+
+        private float PanelHeight
+        {
+            get { return HeightFor(Rows); }
+        }
+
+        private readonly List<GameObject> _rowObjects = new List<GameObject>();
+        private RectTransform _footerRect;
         private const string Orange = "#E47D1E";
         private const string Red = "#FF5A4E";
         private const string Grey = "#8C8C8C";
@@ -166,6 +212,8 @@ namespace GameModeForge.SalvageShop
                 _shopTab = FShopTab != null ? FShopTab.GetValue(screen) as Image : null;
                 _selBg = FSelBg != null ? FSelBg.GetValue(screen) as Sprite : null;
                 _unselBg = FUnselBg != null ? FUnselBg.GetValue(screen) as Sprite : null;
+                _buttonBg = SalvageUi.FindSprite(ButtonSpriteName);
+                _frameBg = SalvageUi.FindSprite(FrameSpriteName);
 
                 var right = FRight != null ? FRight.GetValue(screen) as RectTransform : null;
                 var tabs = FTabs != null ? FTabs.GetValue(screen) as GameObject : null;
@@ -236,47 +284,88 @@ namespace GameModeForge.SalvageShop
 
                 Image bg = root.gameObject.AddComponent<Image>();
                 bg.color = new Color(0f, 0f, 0f, 0.45f);
+                Sprite panelFrame = _frameBg != null ? _frameBg : _unselBg;
 
-                if (_unselBg != null)
+                // The mouse wheel anywhere over the panel scrolls the list
+                // (a scroll event climbs from whatever is under the pointer
+                // to the first handler above it - this one).
+                root.gameObject.AddComponent<SalvageScroll>().panel = this;
+
+                if (panelFrame != null)
                 {
-                    bg.sprite = _unselBg;
+                    bg.sprite = panelFrame;
                     bg.type = Image.Type.Sliced;
                 }
 
-                // -- the two modes: clones of VAULT's tab --------------------
+                // -- the two modes: plain BUTTONS, built fresh ----------------
+                //
+                // ★ R21 PART 4, 368: "theres still a bottom line of their
+                // squares missing" - after part 3 had given them the game's
+                // button frame (_3, closed on all four sides, measured off the
+                // atlas). They were still COPIES of the VAULT tab, and a tab
+                // brings its own animator (AnimatedButton: ToggleOn moves and
+                // resizes its ButtonBody and swaps its sprite) and its tab
+                // layout. So they are built from nothing now: one Image with
+                // the button frame, a Button, and a caption copied from the tab
+                // text - nothing of the tab comes with them.
                 for (int i = 0; i < 2; i++)
                 {
-                    GameObject b = SalvageUi.Clone(vaultButton.gameObject, root,
-                                                   i == 0 ? "SalvageModeScrap" : "SalvageModeUpgrade");
-                    StripHint(b);
-
-                    var rt = (RectTransform)b.transform;
+                    RectTransform rt = SalvageUi.NewRect(
+                        i == 0 ? "SalvageModeScrap" : "SalvageModeUpgrade", root);
                     rt.anchorMin = new Vector2(i * 0.5f, 1f);
                     rt.anchorMax = new Vector2(i * 0.5f + 0.5f, 1f);
                     rt.pivot = new Vector2(0.5f, 1f);
                     rt.offsetMin = new Vector2(8f, -70f);
                     rt.offsetMax = new Vector2(-8f, -8f);
 
-                    Component t = SalvageUi.FirstText(b);
-                    SalvageUi.SetText(t, i == 0 ? "SALVAGE" : "UPGRADE");
-                    SalvageUi.Fit(t, 34f, 14f);
+                    Image face = rt.gameObject.AddComponent<Image>();
+                    Sprite frameSprite = _buttonBg != null ? _buttonBg : _frameBg;
 
-                    Button mb = b.GetComponentInChildren<Button>(true);
+                    if (frameSprite != null)
+                    {
+                        face.sprite = frameSprite;
+                        face.type = Image.Type.Sliced;
+                    }
+
+                    Button mb = rt.gameObject.AddComponent<Button>();
+                    mb.targetGraphic = face;
                     SalvageMode mode = i == 0 ? SalvageMode.Salvage : SalvageMode.Upgrade;
-                    SalvageUi.Rewire(mb, () => SetMode(mode));
-                    _modeImages[i] = mb != null ? mb.targetGraphic as Image : null;
-                    TakesClicks(b.transform);
+                    mb.onClick.AddListener(() => SetMode(mode));
+
+                    // The caption: the tab's own text, so the font matches. (A
+                    // missing tab text fails the build further down, loudly.)
+                    if (tabText != null)
+                    {
+                        GameObject cap = SalvageUi.Clone(tabText.gameObject, rt, "Caption");
+                        SalvageUi.Fill((RectTransform)cap.transform);
+                        Component t = SalvageUi.FirstText(cap);
+                        SalvageUi.SetText(t, i == 0 ? "SALVAGE" : "UPGRADE");
+                        SalvageUi.Align(t, false);
+                        SalvageUi.OneLine(t);
+                        SalvageUi.Fit(t, 34f, 14f);
+                        SalvageUi.SetRaycast(t, false);
+                    }
+
+                    _modeImages[i] = face;
+                    TakesClicks(rt);
                 }
+
+                SalvageShopPlugin.Log.LogInfo(
+                    "the SALVAGE and UPGRADE buttons are drawn with " +
+                    (_buttonBg != null ? "the game's button frame (" + ButtonSpriteName + ")"
+                     : _frameBg != null ? "the vault's frame (" + FrameSpriteName + "), the button frame was not found"
+                     : "no frame at all - neither the button nor the vault frame was found") + ".");
 
                 // -- the slot ------------------------------------------------
                 RectTransform slotRect = SalvageUi.NewRect("SalvageSlot", root);
                 SalvageUi.Box(slotRect, 10f, 80f, 112f, 112f);
 
                 Image frame = slotRect.gameObject.AddComponent<Image>();
+                Sprite slotFrame = _frameBg != null ? _frameBg : _unselBg;
 
-                if (_unselBg != null)
+                if (slotFrame != null)
                 {
-                    frame.sprite = _unselBg;
+                    frame.sprite = slotFrame;
                     frame.type = Image.Type.Sliced;
                 }
 
@@ -339,20 +428,23 @@ namespace GameModeForge.SalvageShop
 
                 _title = Text(captionSource, root, "SalvageTitle", 132f, 80f, 34f, 28f, false, false);
                 _status = Text(captionSource, root, "SalvageStatus", 132f, 116f, 72f, 21f, true, false);
-                _quick = Text(captionSource, root, "SalvageQuick", 132f, 192f, 26f, 21f, false, true);
-                AddClick(_quick, ToggleQuick);
-                TakesClicks(_quick);
 
-                for (int i = 0; i < VisibleRows; i++)
+                for (int i = 0; i < UpgradeRows; i++)
                 {
-                    Component row = Text(captionSource, root, "SalvageRow" + i, 12f, 224f + i * 28f, 28f, 21f, false, true);
+                    Component row = Text(captionSource, root, "SalvageRow" + i, 12f, RowsTop + i * RowStep, RowStep, 21f, false, true);
                     int index = i;
                     AddClick(row, () => RowClicked(index));
                     TakesClicks(row);
                     _rows.Add(row);
+
+                    // The clone's own object (a child of the panel), which is
+                    // what Layout shows and hides.
+                    Transform rowGo = root.Find("SalvageRow" + i);
+                    _rowObjects.Add(rowGo != null ? rowGo.gameObject : row.gameObject);
                 }
 
-                _footer = Text(captionSource, root, "SalvageFooter", 12f, 224f + VisibleRows * 28f + 4f, 28f, 20f, false, false);
+                _footer = Text(captionSource, root, "SalvageFooter", 12f, RowsTop + Rows * RowStep + 4f, 28f, 20f, false, false);
+                _footerRect = root.Find("SalvageFooter") as RectTransform;
 
                 _root.SetActive(false);
 
@@ -652,11 +744,8 @@ namespace GameModeForge.SalvageShop
             if (_shopTab != null && _unselBg != null) _shopTab.sprite = _unselBg;
             if (_myTab != null && _selBg != null) _myTab.sprite = _selBg;
 
-            if (!_shrunk)
-            {
-                _vaultRect.offsetMax = new Vector2(_vaultTop.x, _vaultTop.y - PanelHeight - 8f);
-                _shrunk = true;
-            }
+            _shrunk = true;
+            Layout();
 
             _root.SetActive(true);
             IsOpen = true;
@@ -705,6 +794,55 @@ namespace GameModeForge.SalvageShop
                 SetActive(_shop != null && _shop.IsOpened ? (ModuleContainerWidget)_shop : _vaultWidget);
         }
 
+        // The panel's height for the mode it is in (UpgradeRows / SalvageRows),
+        // the rows past that hidden (so they cannot take a click), the footer
+        // under the last row, and the vault shortened to fit under it.
+        private void Layout()
+        {
+            if (_root == null)
+                return;
+
+            try
+            {
+                int rows = Rows;
+                float height = HeightFor(rows);
+                var root = (RectTransform)_root.transform;
+
+                root.offsetMin = new Vector2(root.offsetMin.x, _vaultTop.y - height);
+                root.offsetMax = new Vector2(root.offsetMax.x, _vaultTop.y);
+
+                for (int i = 0; i < _rowObjects.Count; i++)
+                    if (_rowObjects[i] != null)
+                        _rowObjects[i].SetActive(i < rows);
+
+                if (_footerRect != null)
+                    SalvageUi.Row(_footerRect, 12f, 12f, RowsTop + rows * RowStep + 4f, 28f);
+
+                if (_shrunk && _vaultRect != null)
+                    _vaultRect.offsetMax = new Vector2(_vaultTop.x, _vaultTop.y - PanelHeight - 8f);
+
+                _top = Mathf.Clamp(_top, 0, Math.Max(0, _offers.Count - rows));
+            }
+            catch (Exception)
+            {
+                // Cosmetic: the panel keeps the size it had.
+            }
+        }
+
+        // The mouse wheel (SalvageScroll): moves the view, not the pick, so a
+        // stat picked and then scrolled away from is still the one R buys.
+        internal void Scroll(int rows)
+        {
+            if (!IsOpen || Slotted == null || Mode != SalvageMode.Upgrade || _offers.Count <= Rows)
+                return;
+
+            int was = _top;
+            _top = Mathf.Clamp(_top + rows, 0, _offers.Count - Rows);
+
+            if (_top != was)
+                Redraw();
+        }
+
         // ---- modes ----------------------------------------------------------------
 
         internal void ToggleMode()
@@ -732,16 +870,7 @@ namespace GameModeForge.SalvageShop
                 Sfx(FSelectSfx, input);
             }
 
-            Redraw();
-        }
-
-        internal void ToggleQuick()
-        {
-            if (!IsOpen)
-                return;
-
-            SalvageShopPlugin.SetQuick(!SalvageShopPlugin.Quick, "the SALVAGE screen");
-            Sfx(FSelectSfx, input);
+            Layout();
             Redraw();
         }
 
@@ -786,12 +915,6 @@ namespace GameModeForge.SalvageShop
             Offer(m);
             ShowIcon(m);
             Sfx(FMoveSfx, screen);
-
-            if (Mode == SalvageMode.Salvage && SalvageShopPlugin.Quick && !NeedsWarning(m))
-            {
-                Scrap();
-                return;
-            }
 
             Redraw();
         }
@@ -941,12 +1064,6 @@ namespace GameModeForge.SalvageShop
                 SetActive(slot);
                 slot.SelectFirstModule();
             }
-            else
-            {
-                // Quick salvage already scrapped it.
-                SetActive(_vaultWidget);
-                try { _vaultWidget.SelectFirstModule(); } catch (Exception) { }
-            }
 
             return true;
         }
@@ -971,7 +1088,7 @@ namespace GameModeForge.SalvageShop
             return true;
         }
 
-        // Y (pad), R (keyboard), G (mode), C (quick salvage), X (take out) -
+        // Y (pad), R (keyboard), G (mode), X (take out) -
         // read on THIS menu player's own devices, every frame the grid screen
         // updates. Nothing is bound into the game's input.
         internal void Keys()
@@ -1002,8 +1119,6 @@ namespace GameModeForge.SalvageShop
                         Confirm();
                     else if (kb.gKey.wasPressedThisFrame)
                         ToggleMode();
-                    else if (kb.cKey.wasPressedThisFrame)
-                        ToggleQuick();
                     else if (kb.xKey.wasPressedThisFrame)
                         TakeOut();
                 }
@@ -1034,10 +1149,10 @@ namespace GameModeForge.SalvageShop
             if (_cursor < _top)
                 _top = _cursor;
 
-            if (_cursor >= _top + VisibleRows)
-                _top = _cursor - VisibleRows + 1;
+            if (_cursor >= _top + Rows)
+                _top = _cursor - Rows + 1;
 
-            _top = Mathf.Clamp(_top, 0, Math.Max(0, _offers.Count - VisibleRows));
+            _top = Mathf.Clamp(_top, 0, Math.Max(0, _offers.Count - Rows));
         }
 
         // A click on a row: the first picks it, a second on the same row buys.
@@ -1085,8 +1200,7 @@ namespace GameModeForge.SalvageShop
 
             if (Mode == SalvageMode.Salvage)
             {
-                // ★ An upgraded item or a ranked gun asks a second time (3.1),
-                // quick salvage or not.
+                // ★ An upgraded item or a ranked gun asks a second time (3.1).
                 if (NeedsWarning(Slotted) && !_armed)
                 {
                     _armed = true;
@@ -1320,8 +1434,15 @@ namespace GameModeForge.SalvageShop
 
                 for (int i = 0; i < 2; i++)
                 {
-                    if (_modeImages[i] != null && _selBg != null && _unselBg != null)
-                        _modeImages[i].sprite = (int)Mode == i ? _selBg : _unselBg;
+                    if (_modeImages[i] == null)
+                        continue;
+
+                    bool on = (int)Mode == i;
+
+                    // A button keeps its shape whichever mode is on; the one in
+                    // use is lit and the other dimmed. Never a tab sprite (R21
+                    // part 4: the buttons are built fresh, with a closed frame).
+                    _modeImages[i].color = on ? Color.white : new Color(0.5f, 0.5f, 0.5f, 1f);
                 }
 
                 Module m = Slotted;
@@ -1368,17 +1489,15 @@ namespace GameModeForge.SalvageShop
                     }
                 }
 
-                SalvageUi.SetText(_quick, "[" + (SalvageShopPlugin.Quick ? "<color=" + Orange + ">X</color>" : " ") +
-                                          "] QUICK SALVAGE  <color=" + Grey + ">(" + (Pad ? "X" : "C") + ")</color>");
-
                 for (int i = 0; i < _rows.Count; i++)
                     SalvageUi.SetText(_rows[i], RowText(i, m, r, common, uncommon, exName, bondName));
 
                 SalvageUi.SetText(_footer,
                     "YOU HAVE " + (common != null ? _vault.AmountOf(common) : 0) + " " + exName + " · " +
                     (uncommon != null ? _vault.AmountOf(uncommon) : 0) + " " + bondName +
-                    (Mode == SalvageMode.Upgrade && _offers.Count > VisibleRows
-                        ? "   <color=" + Grey + ">" + (_cursor + 1) + " / " + _offers.Count + "</color>"
+                    (Mode == SalvageMode.Upgrade && m != null && _offers.Count > Rows
+                        ? "  <color=" + Grey + ">" + (_top + 1) + "-" + Math.Min(_offers.Count, _top + Rows) +
+                          "/" + _offers.Count + (Pad ? " UP/DOWN" : " WHEEL") + "</color>"
                         : "") +
                     (SalvageRules.Broken ? "   <color=" + Red + ">RULES FILE UNREADABLE - SEE THE LOG</color>" : ""));
             }
@@ -1543,6 +1662,34 @@ namespace GameModeForge.SalvageShop
             catch (Exception)
             {
                 return 0;
+            }
+        }
+    }
+
+    // The mouse wheel over the SALVAGE panel scrolls its upgrade list (R21:
+    // "Maybe add an option to move the mouse wheel"). On the panel's root, so
+    // a wheel over any row, line or gap climbs to it.
+    internal sealed class SalvageScroll : MonoBehaviour, UnityEngine.EventSystems.IScrollHandler
+    {
+        internal SalvagePanel panel;
+
+        public void OnScroll(UnityEngine.EventSystems.PointerEventData data)
+        {
+            try
+            {
+                if (panel == null || data == null)
+                    return;
+
+                float y = data.scrollDelta.y;
+
+                if (y > 0f)
+                    panel.Scroll(-1);
+                else if (y < 0f)
+                    panel.Scroll(1);
+            }
+            catch (Exception)
+            {
+                // Never out of an input event.
             }
         }
     }

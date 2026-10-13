@@ -58,6 +58,46 @@ namespace GameModeForge.SalvageShop
                 return false;
             }
         }
+
+        // ★ R21 PART 3, 325 / 329: "Leveling up spark ... no longer makes a
+        // projectile and just spawns a spark right next to the player", and
+        // "Blade explodes instantly next to the player. Same with Popper. Works
+        // fine with missiles." The game's own add-on flags (`addTimeoutExplosion`
+        // on an explosion, `timeout` on a spark) do not just say "go off when
+        // the shot times out" - they switch the shot's lifetime ON. Popper,
+        // Blades, Worm, Shotgun, DiscGun and Bolt ship `lifetimeData.enabled 0,
+        // time 0` (they end by RANGE), so a lifetime switched on at 0 seconds
+        // ends the shot on its first Update: `Time.time > shotTime + 0`. It
+        // went off at the muzzle - a spark beside the ship, or an explosion in
+        // your face once its radius grew past the muzzle (about step 3).
+        // Missiles (time 10) and Debris (time 2) had a lifetime already, which
+        // is why they worked.
+        //
+        // So salvage's own add-ons never set those two flags. This adds the
+        // expiry blast only to a shot that ALREADY HAS a lifetime - which is
+        // exactly what 16.3 decided ("when a timed shot expires").
+        public static void OnTimedExpiry(IProjectile projectile, bool explode, bool spark)
+        {
+            try
+            {
+                ProjectileLifetimeData ld = projectile.LifetimeData;
+
+                if (!ld.enabled)
+                    return;
+
+                if (explode)
+                    ld.spawnExplosion = true;
+
+                if (spark)
+                    ld.discharge = true;
+
+                projectile.LifetimeData = ld;
+            }
+            catch (Exception)
+            {
+                // The hit still works; only the expiry blast is lost.
+            }
+        }
     }
 
     // An explosion: salvage's own (14.3), or a stock AddExplosion with its cost
@@ -70,6 +110,11 @@ namespace GameModeForge.SalvageShop
         // 18.1: a plain shot that reaches its range explodes too - salvage's
         // own explosion only, and only with the setting on.
         public bool atRange;
+
+        // 16.3: "when a timed shot expires" - salvage's own explosion only.
+        // See SalvageAddOns.OnTimedExpiry for why this is not the game's own
+        // addTimeoutExplosion.
+        public bool onTimedExpiry;
 
         float IHasPerProjectileCost.CostPerProjectile
         {
@@ -87,6 +132,9 @@ namespace GameModeForge.SalvageShop
                 return;
 
             base.ModifyProjectile(projectile);
+
+            if (onTimedExpiry)
+                SalvageAddOns.OnTimedExpiry(projectile, true, false);
 
             if (atRange)
             {
@@ -115,6 +163,7 @@ namespace GameModeForge.SalvageShop
                 realCost = realCost,
                 realResource = realResource,
                 atRange = atRange,
+                onTimedExpiry = onTimedExpiry,
                 Module = Module
             };
         }
@@ -149,6 +198,9 @@ namespace GameModeForge.SalvageShop
         public int realCost;
         public global::Resource realResource;
 
+        // 16.3, salvage's own spark only - see SalvageAddOns.OnTimedExpiry.
+        public bool onTimedExpiry;
+
         float IHasPerProjectileCost.CostPerProjectile
         {
             get { return 0f; }
@@ -165,6 +217,9 @@ namespace GameModeForge.SalvageShop
                 return;
 
             base.ModifyProjectile(projectile);
+
+            if (onTimedExpiry)
+                SalvageAddOns.OnTimedExpiry(projectile, false, true);
         }
 
         public override ModuleEffect Clone()
@@ -179,6 +234,7 @@ namespace GameModeForge.SalvageShop
                 costResource = costResource,
                 realCost = realCost,
                 realResource = realResource,
+                onTimedExpiry = onTimedExpiry,
                 Module = Module
             };
         }

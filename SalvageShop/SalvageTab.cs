@@ -5,12 +5,13 @@ namespace GameModeForge.SalvageShop
     // THE ROWS SALVAGE SHOP PUTS IN GAME MODE FORGE'S SETTINGS TAB (3.9,
     // DECIDED round 2: "rows in the GAME MODE FORGE tab for the on/off and the
     // refund %"; PROPOSED and taken: "the Bond chance and the Ex per scrap get
-    // tab rows too"), plus the QUICK SALVAGE switch the screen's tickbox writes.
+    // tab rows too"). The QUICK SALVAGE switch that was here is gone (R21 part
+    // 3, his call: every scrap asks).
     //
     // ★ GAME MODE FORGE DRAWS THEM, SALVAGE SHOP OWNS THEM. Found by TYPE NAME
     // ("GameModeForge.SalvageShop.SalvageTab"); Game Mode Forge knows nothing
     // about what the rows mean. The numbers live in the rules file (the same
-    // one Salvage Builder.html writes), the switch in this mod's cfg.
+    // one Salvage Builder.html writes).
     //
     // THE CONTRACT - the one New Game Plus's NgTab speaks (ForgeTabRows):
     //
@@ -35,7 +36,6 @@ namespace GameModeForge.SalvageShop
                 "salvage.refund|slider|Scrap refund of upgrades|" + PercentSteps + "|" + (PercentSteps * PercentPerStep),
                 "salvage.bond|slider|Bond chance a scrap|" + PercentSteps + "|" + (PercentSteps * PercentPerStep),
                 "salvage.ex|slider|Ex a scrap|" + ExSteps + "|" + ExSteps,
-                "salvage.quick|toggle|Quick salvage (no confirm)|Off|On",
             };
         }
 
@@ -53,8 +53,6 @@ namespace GameModeForge.SalvageShop
                         return Step(r.bondChance, PercentPerStep, PercentSteps);
                     case "salvage.ex":
                         return Math.Max(0, Math.Min(ExSteps, r.exPerScrap));
-                    case "salvage.quick":
-                        return SalvageShopPlugin.QuickSalvage != null && SalvageShopPlugin.QuickSalvage.Value ? 1 : 0;
                 }
             }
             catch (Exception)
@@ -76,8 +74,6 @@ namespace GameModeForge.SalvageShop
                         return SalvageRules.SetScrap("bondChance", Math.Max(0, value) * PercentPerStep);
                     case "salvage.ex":
                         return SalvageRules.SetScrap("exPerScrap", Math.Max(0, value));
-                    case "salvage.quick":
-                        return SalvageShopPlugin.SetQuick(value != 0, "the settings tab");
                 }
             }
             catch (Exception ex)
