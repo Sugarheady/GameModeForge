@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{A7D4E085-B169-4E32-D4FC-9B5E2C38A046}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <!-- ★ The namespace starts with GameModeForge. on purpose: Game Mode
+         Forge's log copies any GAME error whose stack trace has a frame
+         starting "GameModeForge.", so a throw out of one of these patches
+         lands in GameModeForge.log with no code of its own. -->
+    <RootNamespace>GameModeForge.Leaderboard</RootNamespace>
+    <AssemblyName>Leaderboard</AssemblyName>
+    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <Deterministic>true</Deterministic>
+    <!-- Keeps the builder's absolute paths OUT of the shipped DLL - the same
+         line, for the same reason, as the other csproj files beside it.
+         These repos are public. Please leave it in. -->
+    <PathMap>$(MSBuildProjectDirectory)=.</PathMap>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <!-- $(PunkManaged) and $(PunkCore) come from Directory.Build.props at the
+       repo root, exactly as for the other projects - see BUILDING.md.
+
+       ★ NO REFERENCE TO GameModeForge, NewGamePlus, WeaponForge, ModuleForge
+       OR ANY SIBLING. This DLL must build and run with every other mod
+       absent. It finds Game Mode Forge's log and New Game Plus's carry
+       contract by TYPE NAME at run time. -->
+  <ItemGroup>
+    <Reference Include="0Harmony">
+      <HintPath>$(PunkCore)\0Harmony.dll</HintPath>
+    </Reference>
+    <Reference Include="BepInEx.Core">
+      <HintPath>$(PunkCore)\BepInEx.Core.dll</HintPath>
+    </Reference>
+    <Reference Include="BepInEx.Unity.Mono">
+      <HintPath>$(PunkCore)\BepInEx.Unity.Mono.dll</HintPath>
+    </Reference>
+    <!-- The board's file (BepInEx\config\...runs.json). -->
+    <Reference Include="Newtonsoft.Json">
+      <HintPath>$(PunkManaged)\Newtonsoft.Json.dll</HintPath>
+    </Reference>
+    <Reference Include="Punk.Main">
+      <HintPath>$(PunkManaged)\Punk.Main.dll</HintPath>
+    </Reference>
+    <Reference Include="ServiceLocator">
+      <HintPath>$(PunkManaged)\ServiceLocator.dll</HintPath>
+    </Reference>
+    <!-- RunData and the save are Odin-serialized types; the compiler needs
+         these to read them at all. -->
+    <Reference Include="Sirenix.Serialization">
+      <HintPath>$(PunkManaged)\Sirenix.Serialization.dll</HintPath>
+    </Reference>
+    <Reference Include="Sirenix.Serialization.Config">
+      <HintPath>$(PunkManaged)\Sirenix.Serialization.Config.dll</HintPath>
+    </Reference>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <!-- InputAction: the main menu's own Esc (MainMenu.exitAction) closes the board. -->
+    <Reference Include="Unity.InputSystem">
+      <HintPath>$(PunkManaged)\Unity.InputSystem.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine">
+      <HintPath>$(PunkManaged)\UnityEngine.dll</HintPath>
+    </Reference>
+    <!-- Animator: the LEADERBOARD button animates in and out with SETTINGS. -->
+    <Reference Include="UnityEngine.AnimationModule">
+      <HintPath>$(PunkManaged)\UnityEngine.AnimationModule.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>$(PunkManaged)\UnityEngine.CoreModule.dll</HintPath>
+    </Reference>
+    <!-- Button, Image, ScrollRect, Scrollbar, EventSystem: the board. -->
+    <Reference Include="UnityEngine.UI">
+      <HintPath>$(PunkManaged)\UnityEngine.UI.dll</HintPath>
+    </Reference>
+    <!-- Canvas: the board is drawn above the main menu. -->
+    <Reference Include="UnityEngine.UIModule">
+      <HintPath>$(PunkManaged)\UnityEngine.UIModule.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="LeaderboardPlugin.cs" />
+    <Compile Include="LbCarry.cs" />
+    <Compile Include="LbInterop.cs" />
+    <Compile Include="LbLog.cs" />
+    <Compile Include="LbMath.cs" />
+    <Compile Include="LbMenu.cs" />
+    <Compile Include="LbMods.cs" />
+    <Compile Include="LbRun.cs" />
+    <Compile Include="LbSettings.cs" />
+    <Compile Include="LbStore.cs" />
+    <Compile Include="LbTab.cs" />
+    <Compile Include="LbUi.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+</Project>
