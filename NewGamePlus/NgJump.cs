@@ -63,6 +63,9 @@ namespace GameModeForge.NewGamePlus
             public int queensBefore;
             public NgRules rules;
 
+            // The first-world switch's step, kept for the whole chain.
+            public int ahead;
+
             public readonly List<ShipCarry> ships = new List<ShipCarry>();
             public byte[] vault;
             public byte[] runData;
@@ -116,7 +119,8 @@ namespace GameModeForge.NewGamePlus
 
                 NewGamePlusPlugin.Log.LogInfo(
                     "NEW GAME PLUS chosen (" + from + "): leaving " + NgMath.WorldName(NgRun.Plus) +
-                    " for " + NgMath.WorldName(p.toPlus) + " - " + p.rules.Summary(p.toPlus) +
+                    " for " + NgMath.WorldWithRules(p.toPlus, p.ahead) + " - " +
+                    p.rules.Summary(NgMath.RulesPlus(p.toPlus, p.ahead)) +
                     ". Carrying " + CarriedList(p) + ".");
 
                 // Weapon Forge takes its rank records now, while the old
@@ -166,6 +170,7 @@ namespace GameModeForge.NewGamePlus
             var p = new Payload
             {
                 toPlus = NgRun.Plus + 1,
+                ahead = NgRun.Ahead,
                 seed = NgRun.NewSeed(),
                 queensBefore = NgRun.QueensBefore + run.KilledBossCount,
 

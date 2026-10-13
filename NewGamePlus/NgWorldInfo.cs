@@ -50,6 +50,27 @@ namespace GameModeForge.NewGamePlus
         private static readonly FieldInfo PauseAction = AccessTools.Field(typeof(PauseScreen), "pauseAction");
         private static readonly FieldInfo CloseDelay = AccessTools.Field(typeof(UIScreen), "closeDelay");
         private static readonly FieldInfo IsOpenField = AccessTools.Field(typeof(PauseScreen), "isOpen");
+        private static readonly FieldInfo ScreenCanvas = AccessTools.Field(typeof(UIScreen), "canvas");
+
+        // ★ THE PAUSE MENU IS HIDDEN WHILE THIS IS UP (R21, his ask: "would it
+        // be possible to hide the pause menu while you're reading the world
+        // information? Also maybe make it less transparent"). Its canvas is
+        // switched off - the one thing UIScreen itself switches - and back on
+        // at Close, only if this switched it off and the pause is still open.
+        private static Canvas _pauseCanvas;
+        private static bool _hidPause;
+
+        // The game-over screen's backdrop ships at 75% black; this one is
+        // nearly solid so the text reads over a busy world.
+        private const float BackdropAlpha = 0.96f;
+
+        // The layout (R21 part 3, 339), in the canvas's reference units:
+        // the title near the top, the rules in a box from under it down to
+        // just above BACK (whose top is at y -306).
+        private const float TitleY = 430f;
+        private const float InfoTop = 360f;
+        private const float InfoWidth = 1500f;
+        private const float InfoHeight = 645f;
 
         // Open, or closed less than 0.4s ago (the Back press that closed it).
         internal static bool BlocksPause
@@ -75,7 +96,12 @@ namespace GameModeForge.NewGamePlus
                 _pause = pause;
                 _returnTo = returnTo;
 
-                NgUi.SetText(_stats, Text());
+                // ★ R21 PART 3, 338: "Might need to remove the % In the world
+                // info though since its those %'s are large as well." Written
+                // as a word here whatever the font says - the same word the
+                // victory screen uses for a font with no % of its own.
+                NgUi.SetText(_stats, NgMath.PercentAsWord(Text()));
+                NgUi.SayFit(_stats, "WORLD INFO", InfoWidth, InfoHeight);
 
                 _muted = NgUi.Mute(pause);
 
@@ -84,6 +110,8 @@ namespace GameModeForge.NewGamePlus
                 if (es != null)
                     es.SetSelectedGameObject(null);
 
+                HidePause(pause);
+
                 _open = true;
                 _screen.Open();
             }
@@ -91,8 +119,47 @@ namespace GameModeForge.NewGamePlus
             {
                 _open = false;
                 NgUi.Unmute(_muted);
+                ShowPause();
                 NewGamePlusPlugin.Log.LogError("WORLD INFO failed to open: " + ex);
             }
+        }
+
+        private static void HidePause(PauseScreen pause)
+        {
+            try
+            {
+                UIScreen ui = pause.GetComponent<UIScreen>();
+                Canvas canvas = ui != null && ScreenCanvas != null ? ScreenCanvas.GetValue(ui) as Canvas : null;
+
+                if (canvas == null)
+                    canvas = pause.GetComponent<Canvas>();
+
+                if (canvas != null && canvas.enabled)
+                {
+                    canvas.enabled = false;
+                    _pauseCanvas = canvas;
+                    _hidPause = true;
+                }
+            }
+            catch (Exception)
+            {
+                // Cosmetic: the pause menu simply stays visible underneath.
+            }
+        }
+
+        private static void ShowPause()
+        {
+            try
+            {
+                if (_hidPause && _pauseCanvas != null)
+                    _pauseCanvas.enabled = true;
+            }
+            catch (Exception)
+            {
+            }
+
+            _hidPause = false;
+            _pauseCanvas = null;
         }
 
         internal static void Close()
@@ -112,9 +179,11 @@ namespace GameModeForge.NewGamePlus
             }
 
             // Only back into a pause menu that is still open; if it closed,
-            // the game's own UIScreen owns its buttons now.
+            // the game's own UIScreen owns its buttons now - and its canvas,
+            // which its own Close has already switched off.
             if (PauseIsOpen(_pause))
             {
+                ShowPause();
                 NgUi.Unmute(_muted);
 
                 EventSystem es = EventSystem.current;
@@ -124,6 +193,8 @@ namespace GameModeForge.NewGamePlus
             }
             else
             {
+                _hidPause = false;
+                _pauseCanvas = null;
                 _muted.Clear();
             }
         }
@@ -199,7 +270,8 @@ namespace GameModeForge.NewGamePlus
                 sb.AppendLine("Total deaths: " + meta.GetTotalDeathCount());
 
             // ...then New Game Plus's own.
-            sb.AppendLine("World: " + NgMath.WorldName(NgRun.Plus));
+            sb.AppendLine("World: " + NgMath.WorldWithRules(NgRun.Plus, NgRun.Ahead) +
+                          (NgRun.Ahead > 0 ? " - your first-world switch is on" : ""));
             sb.AppendLine("Queens killed, every world: " +
                           (NgRun.QueensBefore + (run != null ? run.KilledBossCount : 0)));
 
@@ -219,7 +291,8 @@ namespace GameModeForge.NewGamePlus
             sb.AppendLine();
             sb.AppendLine("<b>THIS WORLD'S RULES</b>");
 
-            int plus = NgRun.Plus;
+            // The rules are read one step on with the first-world switch.
+            int plus = NgRun.RulesPlus;
             NgRules r = NgRun.Rules;
             bool any = false;
 
@@ -253,6 +326,63 @@ namespace GameModeForge.NewGamePlus
                               (NgDamage.Unknown > 0
                                   ? ", " + NgDamage.Unknown + " left alone - their source could not be told"
                                   : "") + ")");
+            }
+
+            // Stage 2: the enemy weapon stats, each with its own share.
+            var weapons = new List<string>();
+            r.enemyWeapons.AddSummary(weapons, plus);
+
+            if (weapons.Count > 0)
+            {
+                any = true;
+                sb.AppendLine("Enemy weapons: " + string.Join(", ", weapons.ToArray()) +
+                              ", bosses included (" + NgWeapons.ChangedGuns + " guns changed so far" +
+                              (NgWeapons.PacedVolleys > 0
+                                  ? ", " + NgWeapons.PacedVolleys + " volley patterns sped up"
+                                  : "") +
+                              "; minion and mine launchers are left alone)");
+            }
+
+            // Stage 2: the station unlock cost.
+            if (r.stationCost.ActiveAt(plus))
+            {
+                any = true;
+                sb.AppendLine("Stations cost " + r.stationCost.first + " money to unlock, +" +
+                              r.stationCost.RiseAt(plus) + " more each in this world (" + NgStations.Paid +
+                              " unlocked so far; the next costs " + NgStations.NextCostText() + ")" +
+                              (r.stationCost.safetyNet
+                                  ? ". One opens free when your fuel is critical or a co-op partner is down"
+                                  : ""));
+            }
+
+            // Stage 2: money drops.
+            float money = r.moneyDrops.PercentAt(plus);
+
+            if (money > 0f)
+            {
+                any = true;
+                sb.AppendLine("Money drops " + NgMath.Pct(money) + " (" + r.moneyDrops.SourcesText() + "): " +
+                              NgMoney.Extra + " extra money pickups so far" +
+                              (NgMoney.BigCoins > 0 ? ", and " + NgMoney.BigCoins + " big coins" : ""));
+            }
+
+            // Stage 2: harder enemies earlier and the enemy table - decided
+            // when the world was made, so a Continue shows what the world got.
+            string harder = NgWorld.InfoLine(r, plus);
+
+            if (harder != null)
+            {
+                any = true;
+                sb.AppendLine(harder);
+            }
+
+            // Stage 3: Enemy Traits - its own DLL, asked by type name (CONCEPT.md
+            // 3.6: "WORLD INFO lists each trait with its numbers and share of
+            // enemies"). Nothing when it is not installed.
+            foreach (string line in NgTraitsInfo.WorldLines())
+            {
+                any = true;
+                sb.AppendLine(line);
             }
 
             if (!any)
@@ -310,14 +440,58 @@ namespace GameModeForge.NewGamePlus
                 Transform title = NgUi.Find(clone.transform, "GUITitle");
 
                 if (title != null)
+                {
                     NgUi.SetText(title.gameObject, "WORLD INFO");
+
+                    // His 339 note: "the header can be at the middle top of
+                    // the screen". Measured off Game.unity: the title is
+                    // 112 high at y 322 (centre-anchored); this puts it near
+                    // the top edge (540) and leaves the room under it to the
+                    // rules.
+                    var trt = title as RectTransform;
+
+                    if (trt != null)
+                        trt.anchoredPosition = new Vector2(trt.anchoredPosition.x, TitleY);
+                }
+
+                // Measured: `Background`, a full-screen Image at 75% black.
+                Transform backdrop = NgUi.Find(clone.transform, "Background");
+                Image backdropImage = backdrop != null ? backdrop.GetComponent<Image>() : null;
+
+                if (backdropImage != null)
+                {
+                    Color c = backdropImage.color;
+                    backdropImage.color = new Color(c.r, c.g, c.b, BackdropAlpha);
+                }
 
                 Transform stats = NgUi.Find(clone.transform, "Stats");
                 Component statsText = stats != null ? NgUi.FirstText(stats.gameObject) : null;
 
-                // The game-over stats are five lines at size 50; this is
-                // about fifteen, so it shrinks to fit.
-                NgUi.Fit(statsText, 34f, 16f);
+                // ★ R21 PART 3, 339: "the worlds with longer text still kind
+                // of go off screen. Probably worth having a smaller font
+                // brighter text ... bring the info up a bit. its still kind of
+                // clipping into the back button a tiny bit." Measured off
+                // Game.unity: `Stats` is a FULL-SCREEN rect, centred, grey
+                // (0.56) at size 50 - so a long list was centred on the whole
+                // screen, under the title and over the buttons (BACK's top is
+                // at y -306). It is a box now, from under the title down to
+                // above BACK, reading from its top-left corner, nearly white,
+                // auto-sized 30 down to 12.
+                var srt = stats as RectTransform;
+
+                if (srt != null)
+                {
+                    srt.anchorMin = new Vector2(0.5f, 0.5f);
+                    srt.anchorMax = new Vector2(0.5f, 0.5f);
+                    srt.pivot = new Vector2(0.5f, 1f);
+                    srt.sizeDelta = new Vector2(InfoWidth, InfoHeight);
+                    srt.anchoredPosition = new Vector2(0f, InfoTop);
+                }
+
+                NgUi.Fit(statsText, 30f, 12f);
+                NgUi.Wrap(statsText);
+                NgUi.AlignTopLeft(statsText);
+                NgUi.Colour(statsText, new Color(0.94f, 0.94f, 0.94f, 1f));
 
                 // Above the pause menu (both ship at sorting order 300), below
                 // the confirm popup (1200) and Options (10000).
@@ -364,6 +538,43 @@ namespace GameModeForge.NewGamePlus
         }
     }
 
+    // THE GAME-OVER SCREEN NAMES THE NEW GAME PLUS YOU REACHED (R21, his ask:
+    // "On the gameover screen, can you list the number of new game pluses the
+    // player has gone through?"). `GameOverScreen.GetStats` builds its five
+    // lines in one string; two more go under them. Measured: the stats text
+    // fills the screen, centred, at size 50 - five lines are 300 high and the
+    // gap between the title (bottom y 266) and the buttons (top y -306) is
+    // 560, so seven fit without shrinking.
+    [HarmonyPatch(typeof(GameOverScreen), "GetStats")]
+    internal static class NgGameOverPatch
+    {
+        static void Postfix(ref string __result)
+        {
+            try
+            {
+                if (!NgRun.Live)
+                    return;
+
+                RunData run;
+                ServiceLocator.TryGet<RunData>(out run);
+
+                int queens = NgRun.QueensBefore + (run != null ? run.KilledBossCount : 0);
+
+                __result = (__result ?? "") +
+                           "New Game Plus reached: " +
+                           (NgRun.Plus > 0 ? NgRun.Plus.ToString(CultureInfo.InvariantCulture) : "none (the first world)") +
+                           "\n" +
+                           (NgRun.Plus > 0
+                               ? "Queens killed, every world: " + queens.ToString(CultureInfo.InvariantCulture) + "\n"
+                               : "");
+            }
+            catch (Exception)
+            {
+                // The game's own lines stand.
+            }
+        }
+    }
+
     // The screen's own Update: its Back / Pause key. The pause menu's Update
     // is skipped while this is up, so it has to read them itself.
     internal sealed class NgWorldInfoScreen : MonoBehaviour
@@ -378,6 +589,78 @@ namespace GameModeForge.NewGamePlus
             {
                 // Never out of an Update.
             }
+        }
+    }
+
+
+    // ★ ENEMY TRAITS, FOUND BY TYPE NAME (stage 3) - its public `EtInfo`:
+    // `string[] WorldLines()` for WORLD INFO and `string NextLine(int)` for the
+    // victory screen. No reference either way; with Enemy Traits absent (or
+    // throwing) this is simply nothing. Looked up again each run until found
+    // (plugin load order is not guaranteed).
+    internal static class NgTraitsInfo
+    {
+        private const string TypeName = "GameModeForge.EnemyTraits.EtInfo";
+
+        private static System.Reflection.MethodInfo _world, _next;
+
+        private static bool Find()
+        {
+            if (_world != null && _next != null)
+                return true;
+
+            try
+            {
+                Type t = NgUi.FindTypeQuietly(TypeName);
+
+                if (t == null)
+                    return false;
+
+                const System.Reflection.BindingFlags S =
+                    System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static;
+
+                System.Reflection.MethodInfo w = t.GetMethod("WorldLines", S, null, Type.EmptyTypes, null);
+                System.Reflection.MethodInfo n = t.GetMethod("NextLine", S, null, new[] { typeof(int) }, null);
+
+                if (w == null || w.ReturnType != typeof(string[]) || n == null || n.ReturnType != typeof(string))
+                    return false;
+
+                _world = w;
+                _next = n;
+                return true;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+
+        internal static string[] WorldLines()
+        {
+            try
+            {
+                if (Find())
+                    return (string[])_world.Invoke(null, null) ?? new string[0];
+            }
+            catch (Exception)
+            {
+            }
+
+            return new string[0];
+        }
+
+        internal static string NextLine(int rulesPlus)
+        {
+            try
+            {
+                if (Find())
+                    return (string)_next.Invoke(null, new object[] { rulesPlus }) ?? "";
+            }
+            catch (Exception)
+            {
+            }
+
+            return "";
         }
     }
 }

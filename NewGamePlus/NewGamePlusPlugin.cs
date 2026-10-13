@@ -47,6 +47,13 @@ namespace GameModeForge.NewGamePlus
 
         private static bool _patched;
 
+        // True when this launch patched (switched on). The DLL is loaded either
+        // way, so a sibling asking "is New Game Plus here?" must ask this.
+        internal static bool Patched
+        {
+            get { return _patched; }
+        }
+
         private void Awake()
         {
             NgLog.Attach(Logger);

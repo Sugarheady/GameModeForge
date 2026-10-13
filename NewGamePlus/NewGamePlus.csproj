@@ -115,6 +115,11 @@
     <Compile Include="NgBuffs.cs" />
     <Compile Include="NgDamage.cs" />
     <Compile Include="NgJump.cs" />
+    <Compile Include="NgLayers.cs" />
+    <Compile Include="NgStations.cs" />
+    <Compile Include="NgWeapons.cs" />
+    <Compile Include="NgMoney.cs" />
+    <Compile Include="NgWorld.cs" />
     <Compile Include="NgLog.cs" />
     <Compile Include="NgMath.cs" />
     <Compile Include="NgPause.cs" />

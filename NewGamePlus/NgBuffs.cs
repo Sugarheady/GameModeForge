@@ -86,18 +86,41 @@ namespace GameModeForge.NewGamePlus
         private static readonly HashSet<string> _saidNoHealth = new HashSet<string>();
 
         // Counted per world, reported once the first wave has been decided.
-        private static int _applied, _uncovered, _owned, _noHealth;
+        private static int _applied, _uncovered, _owned, _noHealth, _gone;
         private static int _sinceReport;
         private static float _reportAfter = -1f;
         private static bool _saidCount;
 
+        // ★ AN ENEMY CAN DIE IN THE TWO FRAMES IT WAITS (R21: 37 warnings of
+        // "could not buff enemy Enemy_Child (NullReferenceException)", all
+        // around the Queen fights). Enemy_Child is the Cross Queen's minion -
+        // `Weapon_Minion_CrossQueen` spawns them in bursts, often straight
+        // into the player's fire - and its neighbours in the same bursts WERE
+        // buffed, so the type is not the problem. One destroyed before its
+        // turn has had every component's OnDestroy run, and recalculating its
+        // stats runs handlers that belong to objects already gone. So an
+        // enemy destroyed while queued is skipped and counted, never touched.
+        private static readonly HashSet<EntityData> _destroyed = new HashSet<EntityData>();
+        private static readonly Action<EntityData> MarkDestroyed = d => { if (d != null) _destroyed.Add(d); };
+
+        // Anything else that throws: the FIRST failure of each enemy kind is
+        // logged in full (with where it threw), the rest only counted, so one
+        // kind cannot fill the log - and the next report names them.
+        private static readonly Dictionary<string, int> _failed = new Dictionary<string, int>();
+
         internal static void Reset()
         {
+            foreach (Pending p in _queue)
+                if (p.entity != null)
+                    p.entity.Destroyed -= MarkDestroyed;
+
             _queue.Clear();
             _buffed.Clear();
             _done = new ConditionalWeakTable<Module, object>();
             _saidNoHealth.Clear();
-            _applied = _uncovered = _owned = _noHealth = _sinceReport = 0;
+            _destroyed.Clear();
+            _failed.Clear();
+            _applied = _uncovered = _owned = _noHealth = _gone = _sinceReport = 0;
             _reportAfter = -1f;
             _saidCount = false;
 
@@ -144,11 +167,19 @@ namespace GameModeForge.NewGamePlus
         // EntityManager.Add, postfix: a NEW entity of this world.
         internal static void OnAdded(EntityData e)
         {
-            if (e == null || NgRun.Loading || !Wanted())
+            // Enemy weapon stats (stage 2) are decided at the same moment, for
+            // the same reason (the owner trap), so the queue runs for either.
+            if (e == null || NgRun.Loading || (!Wanted() && !NgWeapons.Wanted()))
                 return;
 
             if (IsEnemy(e))
-                _queue.Enqueue(new Pending { entity = e, fresh = true, frame = Time.frameCount });
+                Enqueue(new Pending { entity = e, fresh = true, frame = Time.frameCount });
+        }
+
+        private static void Enqueue(Pending p)
+        {
+            p.entity.Destroyed += MarkDestroyed;
+            _queue.Enqueue(p);
         }
 
         // GameSaver.Load, postfix: every enemy the save brought back. Their
@@ -156,7 +187,7 @@ namespace GameModeForge.NewGamePlus
         // and keeps the health it was saved with.
         internal static void OnLoaded()
         {
-            if (!Wanted())
+            if (!Wanted() && !NgWeapons.Wanted())
                 return;
 
             EntityManager em;
@@ -170,13 +201,13 @@ namespace GameModeForge.NewGamePlus
             {
                 if (e != null && IsEnemy(e))
                 {
-                    _queue.Enqueue(new Pending { entity = e, fresh = false, frame = Time.frameCount });
+                    Enqueue(new Pending { entity = e, fresh = false, frame = Time.frameCount });
                     n++;
                 }
             }
 
             NewGamePlusPlugin.Log.LogInfo(
-                "enemy health " + NgMath.Pct(NgRun.HealthPercent) + ": " + n +
+                (Wanted() ? "enemy health " + NgMath.Pct(NgRun.HealthPercent) : "enemy weapons") + ": " + n +
                 " saved enemies are being re-buffed from the save's rules (the same ones as before).");
         }
 
@@ -208,6 +239,18 @@ namespace GameModeForge.NewGamePlus
 
                 _queue.Dequeue();
 
+                if (p.entity == null)
+                    continue;
+
+                p.entity.Destroyed -= MarkDestroyed;
+
+                if (_destroyed.Remove(p.entity))
+                {
+                    _gone++;
+                    _sinceReport++;
+                    continue;
+                }
+
                 try
                 {
                     Apply(p);
@@ -215,9 +258,19 @@ namespace GameModeForge.NewGamePlus
                 catch (Exception ex)
                 {
                     // One enemy that cannot be buffed stays as the game made it.
-                    NewGamePlusPlugin.Log.LogWarning(
-                        "could not buff enemy " + (p.entity != null ? p.entity.entityId : "?") +
-                        " (" + ex.GetType().Name + ": " + ex.Message + ") - it keeps its normal health.");
+                    string kind = p.entity.entityId ?? "?";
+                    int n;
+
+                    _failed.TryGetValue(kind, out n);
+                    _failed[kind] = n + 1;
+                    _sinceReport++;
+
+                    if (n == 0)
+                    {
+                        NewGamePlusPlugin.Log.LogWarning(
+                            "could not buff enemy " + kind + " - it keeps its normal health. Said once " +
+                            "per kind of enemy; the report counts the rest. What went wrong: " + ex);
+                    }
                 }
             }
 
@@ -244,6 +297,12 @@ namespace GameModeForge.NewGamePlus
                 _sinceReport++;
                 return;
             }
+
+            // Its guns: every weapon stat rolls on its own (NgWeapons).
+            NgWeapons.Decide(e);
+
+            if (!Wanted())
+                return;
 
             if (!NgMath.Covered(NgRun.Seed, e.instanceId, SaltHealth, NgRun.HealthCoverage))
             {
@@ -338,7 +397,7 @@ namespace GameModeForge.NewGamePlus
         {
             _reportAfter = -1f;
 
-            if (_sinceReport == 0)
+            if (_sinceReport == 0 || !Wanted())
                 return;
 
             _sinceReport = 0;
@@ -348,7 +407,23 @@ namespace GameModeForge.NewGamePlus
                 Math.Round(NgRun.HealthCoverage) + "% of enemies (" + NgMath.WorldName(NgRun.Plus) +
                 "): " + _applied + " buffed so far, " + _uncovered + " not in the covered share, " +
                 _owned + " yours (drones and minions are never buffed)" +
-                (_noHealth > 0 ? ", " + _noHealth + " with no health New Game Plus could find" : "") + ".");
+                (_noHealth > 0 ? ", " + _noHealth + " with no health New Game Plus could find" : "") +
+                (_gone > 0 ? ", " + _gone + " destroyed before their turn (left alone)" : "") +
+                Failed() + ".");
+        }
+
+        private static string Failed()
+        {
+            if (_failed.Count == 0)
+                return "";
+
+            var parts = new List<string>();
+
+            foreach (KeyValuePair<string, int> kv in _failed)
+                parts.Add(kv.Key + " x" + kv.Value);
+
+            return ", could not buff " + string.Join(", ", parts.ToArray()) +
+                   " (the first of each kind is in the log above)";
         }
 
         private static bool IsEnemy(EntityData e)
@@ -424,16 +499,27 @@ namespace GameModeForge.NewGamePlus
         }
     }
 
-    // The opt-in marker (DECIDED 2026-09-29: OFF by default). A tiny amber
-    // square above a buffed enemy - never a colour tint on the enemy itself,
-    // because the game's hit flash owns a unit's colour (Weapon Forge's tint
-    // contract). It follows the enemy without turning with it.
+    // The opt-in marker (DECIDED 2026-09-29: OFF by default) - never a colour
+    // tint on the enemy itself, because the game's hit flash owns a unit's
+    // colour (Weapon Forge's tint contract). It follows the enemy without
+    // turning with it.
+    //
+    // ★ R21 302: "I dont really see the marked enemies ... Maybe its worth
+    // giving the enemies a bubble art (like a super small icon next to their
+    // ships)." The first marker was a 3-pixel square, 0.15 units across - a
+    // speck. It is his bubble now: an amber ring with a plus in it, 13 pixels
+    // (0.65 units, about half a small enemy), beside the enemy's upper right
+    // and breathing slowly so the eye finds it.
     internal sealed class NgMarker : MonoBehaviour
     {
         private static Sprite _sprite;
 
+        private const int Size = 13;
+
         private Transform _target;
-        private float _height;
+        private Vector3 _offset;
+        private SpriteRenderer _sr;
+        private float _phase;
 
         internal static void MaybeAttach(int instanceId)
         {
@@ -452,8 +538,19 @@ namespace GameModeForge.NewGamePlus
             Attach(se);
         }
 
-        // EntityGameObjectManager.SpawnPrefabForEntity, postfix: an enemy's
+        // EntityGameObjectManager.SpawnObjectForEntity, postfix: an enemy's
         // GameObject appears (its segment loaded) after it was buffed.
+        //
+        // ★ R21 PART 3, 341: "I got them to show up once when i saved and quit
+        // and then continued after. but so far i dont really see them at all."
+        // This used to hang off SpawnPrefabForEntity - and the decompile has
+        // exactly ONE caller of that: ShipManager, for the SHIPS. Every enemy
+        // a segment loads (InstantiateGameObjects) and every one made in play
+        // (CreateEntity) comes through SpawnObjectForEntity. So a marker only
+        // ever appeared on an enemy whose GameObject happened to exist at the
+        // moment it was buffed - the Queen's children, spawned beside you, and
+        // the enemies near you on a Continue - and never on one that streamed
+        // in as you flew.
         internal static void OnSpawned(SavableEntity se)
         {
             if (se == null || se.EntityData == null)
@@ -462,7 +559,7 @@ namespace GameModeForge.NewGamePlus
             if (NgSettings.EnemyMarker == null || !NgSettings.EnemyMarker.Value)
                 return;
 
-            if (NgBuffs.IsBuffed(se.EntityData.instanceId))
+            if (NgBuffs.IsBuffed(se.EntityData.instanceId) || NgWeapons.IsMarked(se.EntityData.instanceId))
                 Attach(se);
         }
 
@@ -470,33 +567,23 @@ namespace GameModeForge.NewGamePlus
         {
             try
             {
-                if (se.GetComponentInChildren<NgMarker>(true) != null)
+                // ★ ONE MARKER (stage 3, CONCEPT.md 3.6): Enemy Traits draws the
+                // same bubble under the same child name, so an enemy either DLL
+                // has marked is marked once.
+                if (se.GetComponentInChildren<NgMarker>(true) != null || se.transform.Find("NgMarker") != null)
                     return;
 
                 if (_sprite == null)
-                {
-                    var tex = new Texture2D(3, 3, TextureFormat.RGBA32, false);
-                    tex.filterMode = FilterMode.Point;
-
-                    var px = new Color32[9];
-                    for (int i = 0; i < px.Length; i++)
-                        px[i] = new Color32(255, 255, 255, 255);
-
-                    tex.SetPixels32(px);
-                    tex.Apply();
-
-                    // PPU 20 is the game's own: 3 pixels = 0.15 units.
-                    _sprite = Sprite.Create(tex, new Rect(0, 0, 3, 3), new Vector2(0.5f, 0.5f), 20f);
-                }
+                    _sprite = MakeSprite();
 
                 var go = new GameObject("NgMarker");
                 go.transform.SetParent(se.transform, false);
 
                 var sr = go.AddComponent<SpriteRenderer>();
                 sr.sprite = _sprite;
-                sr.color = new Color(1f, 0.6f, 0.15f, 0.95f);
+                sr.color = new Color(1f, 0.62f, 0.15f, 1f);
 
-                // Draw where the enemy draws, just above it.
+                // Draw where the enemy draws, on top of it.
                 SpriteRenderer body = se.GetComponentInChildren<SpriteRenderer>();
 
                 if (body != null && body != sr)
@@ -505,15 +592,18 @@ namespace GameModeForge.NewGamePlus
                     sr.sortingOrder = body.sortingOrder + 50;
                 }
 
-                float height = 1f;
+                // Beside its upper right, clear of the body.
+                Vector2 ext = new Vector2(0.5f, 0.5f);
                 Collider2D col = se.GetComponentInChildren<Collider2D>();
 
                 if (col != null)
-                    height = col.bounds.extents.y + 0.45f;
+                    ext = col.bounds.extents;
 
                 var m = go.AddComponent<NgMarker>();
                 m._target = se.transform;
-                m._height = height;
+                m._offset = new Vector3(ext.x * 0.8f + 0.3f, ext.y + 0.35f, -0.01f);
+                m._sr = sr;
+                m._phase = UnityEngine.Random.value * 6.28f;
                 m.LateUpdate();
             }
             catch (Exception)
@@ -522,13 +612,63 @@ namespace GameModeForge.NewGamePlus
             }
         }
 
+        // An amber ring with a plus in it, drawn once: a dark rim outside the
+        // ring so it reads over bright art as well as dark. White pixels,
+        // tinted amber by the renderer's colour; the rim is near-black.
+        private static Sprite MakeSprite()
+        {
+            var tex = new Texture2D(Size, Size, TextureFormat.RGBA32, false);
+            tex.filterMode = FilterMode.Point;
+
+            var px = new Color32[Size * Size];
+            float c = (Size - 1) * 0.5f;
+            var clear = new Color32(0, 0, 0, 0);
+            var ring = new Color32(255, 255, 255, 255);
+            var rim = new Color32(40, 24, 8, 255);
+
+            for (int y = 0; y < Size; y++)
+            {
+                for (int x = 0; x < Size; x++)
+                {
+                    float d = Mathf.Sqrt((x - c) * (x - c) + (y - c) * (y - c));
+                    bool plus = (x == (int)c && Mathf.Abs(y - c) <= 2.5f) ||
+                                (y == (int)c && Mathf.Abs(x - c) <= 2.5f);
+
+                    Color32 p = clear;
+
+                    if (d > 4.6f && d <= 5.7f)
+                        p = ring;
+                    else if (d > 5.7f && d <= 6.5f)
+                        p = rim;
+                    else if (plus)
+                        p = ring;
+
+                    px[y * Size + x] = p;
+                }
+            }
+
+            tex.SetPixels32(px);
+            tex.Apply();
+
+            // PPU 20 is the game's own: 13 pixels = 0.65 units.
+            return Sprite.Create(tex, new Rect(0, 0, Size, Size), new Vector2(0.5f, 0.5f), 20f);
+        }
+
         private void LateUpdate()
         {
             if (_target == null)
                 return;
 
-            transform.position = _target.position + new Vector3(0f, _height, -0.01f);
+            transform.position = _target.position + _offset;
             transform.rotation = Quaternion.identity;
+
+            // A slow breath, so the eye finds it among moving art.
+            if (_sr != null)
+            {
+                float k = 0.5f + 0.5f * Mathf.Sin(Time.time * 4f + _phase);
+                _sr.color = new Color(1f, 0.62f, 0.15f, 0.7f + 0.3f * k);
+                transform.localScale = Vector3.one * (0.92f + 0.12f * k);
+            }
         }
     }
 
@@ -566,7 +706,7 @@ namespace GameModeForge.NewGamePlus
         }
     }
 
-    [HarmonyPatch(typeof(EntityGameObjectManager), "SpawnPrefabForEntity")]
+    [HarmonyPatch(typeof(EntityGameObjectManager), "SpawnObjectForEntity")]
     internal static class NgSpawnPatch
     {
         static void Postfix(SavableEntity __result)
@@ -578,6 +718,16 @@ namespace GameModeForge.NewGamePlus
             catch (Exception)
             {
                 // Cosmetic only.
+            }
+
+            try
+            {
+                // Stage 3: a decided enemy's volley patterns, on its new body.
+                NgWeapons.OnSpawned(__result);
+            }
+            catch (Exception ex)
+            {
+                NewGamePlusPlugin.Log.LogError("New Game Plus could not speed up an enemy's volleys: " + ex);
             }
         }
     }

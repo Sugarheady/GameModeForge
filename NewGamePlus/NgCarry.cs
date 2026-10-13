@@ -22,6 +22,9 @@ namespace GameModeForge.NewGamePlus
     //             installed, and the vault is restored - but no ship GameObject
     //             exists yet, so a gun has not been built. Exactly the moment a
     //             Continue restores a save's records (GameSaver.Load's postfix).
+    //   RunEnding (contract 3) END RUN on the victory screen: raised just
+    //             before the save is deleted, with the run still loaded - the
+    //             Leaderboard puts the run on its board here.
     //
     // Ship ids change across a jump (an id is a random number from the world's
     // seed), so `NewShipId` maps each old ship to the one it became. Ships are
@@ -32,7 +35,9 @@ namespace GameModeForge.NewGamePlus
     // Keep these names: they are a contract with another repo, pinned in both.
     public static class NgCarry
     {
-        public const int ContractVersion = 1;
+        // 2 (2026-10-12, stage 3): RulesPlus, for Enemy Traits.
+        // 3 (2026-10-12, stage 4): RunEnding, for the Leaderboard.
+        public const int ContractVersion = 3;
 
         // True from Leaving until Arrived. A mod's run-entry reset that sees
         // this true is running for the new world of a jump.
@@ -44,8 +49,31 @@ namespace GameModeForge.NewGamePlus
             get { return NgRun.Plus; }
         }
 
+        // ★ SWITCHED ON THIS LAUNCH (contract 2, stage 3). A DLL that is switched
+        // off in its cfg is still LOADED - this class is still found by type
+        // name - so "New Game Plus is installed" and "New Game Plus is running"
+        // are two questions, and Enemy Traits asks this one.
+        public static bool Enabled
+        {
+            get { return NewGamePlusPlugin.Patched; }
+        }
+
+        // ★ THE PLUS THIS WORLD'S RULES ARE READ AT (contract 2, stage 3) - one
+        // step on from Plus with the first-world switch on. Enemy Traits reads
+        // its traits at this, so the switch moves them too (CONCEPT.md 3.6).
+        // 0 between runs.
+        public static int RulesPlus
+        {
+            get { return NgRun.Live ? NgRun.RulesPlus : 0; }
+        }
+
         public static event Action Leaving;
         public static event Action Arrived;
+
+        // ★ CONTRACT 3 (stage 4): END RUN, raised before the save is deleted.
+        // A death is the game's own GameController.GameOver; END RUN is New Game
+        // Plus's, so New Game Plus says so (CONCEPT.md 5.1).
+        public static event Action RunEnding;
 
         private static readonly Dictionary<int, int> _map = new Dictionary<int, int>();
 
@@ -89,7 +117,15 @@ namespace GameModeForge.NewGamePlus
             _map.Clear();
         }
 
-        // ★ ONE SUBSCRIBER THAT THROWS MUST NOT STOP THE OTHERS - or the jump.
+        // END RUN, confirmed: the run is still loaded and its save not yet
+        // deleted (NgVictory.EndRunConfirmed).
+        internal static void RaiseRunEnding()
+        {
+            Raise(RunEnding, "RunEnding");
+        }
+
+        // ★ ONE SUBSCRIBER THAT THROWS MUST NOT STOP THE OTHERS - or the jump, or
+        // END RUN.
         // Each is called on its own and a failure is logged with its name.
         private static void Raise(Action evt, string name)
         {
@@ -107,7 +143,7 @@ namespace GameModeForge.NewGamePlus
                     NewGamePlusPlugin.Log.LogError(
                         "a mod listening for New Game Plus's " + name + " threw (" +
                         (d.Method.DeclaringType != null ? d.Method.DeclaringType.FullName : "?") +
-                        "." + d.Method.Name + ") - the jump carries on without it. " + ex);
+                        "." + d.Method.Name + ") - New Game Plus carries on without it. " + ex);
                 }
             }
         }

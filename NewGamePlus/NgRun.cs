@@ -46,6 +46,19 @@ namespace GameModeForge.NewGamePlus
         internal static int QueensBefore;   // Queens killed in the earlier worlds of this chain
         internal static NgRules Rules = NgRules.None();
 
+        // ★ HIS FIRST-WORLD SWITCH (stage 2): 1 when the whole chain plays one
+        // step on - the first world by NEW GAME PLUS 1's rules, and so on. It is
+        // decided ONCE, when a run starts (the rules file's firstWorldBuffs),
+        // carried by every jump and kept in the record, so a chain never
+        // changes step half way. Every RULE is read at RulesPlus; every TITLE
+        // keeps Plus (DECIDED: WORLD 1 CLEARED stays WORLD 1 CLEARED).
+        internal static int Ahead;
+
+        internal static int RulesPlus
+        {
+            get { return NgMath.RulesPlus(Plus, Ahead); }
+        }
+
         // Reached by a jump and not yet announced + saved. Cleared BEFORE the
         // arrival save, so the record that save writes says it is done.
         internal static bool ArrivalPending;
@@ -55,22 +68,22 @@ namespace GameModeForge.NewGamePlus
 
         internal static float HealthPercent
         {
-            get { return Live ? Rules.HealthPercent(Plus) : 0f; }
+            get { return Live ? Rules.HealthPercent(RulesPlus) : 0f; }
         }
 
         internal static float HealthCoverage
         {
-            get { return Live ? Rules.HealthCoverage(Plus) : 0f; }
+            get { return Live ? Rules.HealthCoverage(RulesPlus) : 0f; }
         }
 
         internal static float CountPercent
         {
-            get { return Live ? Rules.CountPercent(Plus) : 0f; }
+            get { return Live ? Rules.CountPercent(RulesPlus) : 0f; }
         }
 
         internal static float DamagePercent
         {
-            get { return Live ? Rules.DamagePercent(Plus) : 0f; }
+            get { return Live ? Rules.DamagePercent(RulesPlus) : 0f; }
         }
 
         internal static bool DamageEnvironment
@@ -87,6 +100,7 @@ namespace GameModeForge.NewGamePlus
         {
             Live = false;
             Plus = 0;
+            Ahead = 0;
             Seed = 0;
             QueensBefore = 0;
             Rules = NgRules.None();
@@ -97,6 +111,11 @@ namespace GameModeForge.NewGamePlus
             NgBuffs.Reset();
             NgDamage.Reset();
             NgVictory.Reset();
+            NgLayers.Reset();
+            NgWeapons.Reset();
+            NgStations.Reset();
+            NgMoney.Reset();
+            NgWorld.Reset();
         }
 
         // RunData.Initialize, prefix. Runs for EVERY Game scene - a Continue
@@ -135,28 +154,34 @@ namespace GameModeForge.NewGamePlus
             if (jump != null)
             {
                 NgJump.Arriving = jump;
-                Begin(jump.toPlus, jump.seed, jump.queensBefore, jump.rules, true);
+                Begin(jump.toPlus, jump.seed, jump.queensBefore, jump.rules, true, jump.ahead);
                 return;
             }
 
             // A fresh run: plus 0, with the rules the file says now. A buff
-            // with fromPlus 0 is live from here (DECIDED 2026-09-29).
-            Begin(0, NewSeed(), 0, NgRules.LoadFile(), false);
+            // with fromPlus 0 is live from here (DECIDED 2026-09-29). The
+            // first-world switch is read here and only here.
+            NgRules fresh = NgRules.LoadFile();
+            Begin(0, NewSeed(), 0, fresh, false, fresh.firstWorldBuffs ? 1 : 0);
         }
 
-        private static void Begin(int plus, int seed, int queensBefore, NgRules rules, bool arrived)
+        private static void Begin(int plus, int seed, int queensBefore, NgRules rules, bool arrived, int ahead)
         {
             Live = true;
             Plus = plus;
+            Ahead = Math.Max(0, Math.Min(1, ahead));
             Seed = seed;
             QueensBefore = queensBefore;
             Rules = rules ?? NgRules.None();
             ArrivalPending = arrived;
 
             NewGamePlusPlugin.Log.LogInfo(
-                (arrived ? "ARRIVED in " : "run started: ") + NgMath.WorldName(plus) +
-                " - " + Rules.Summary(plus) + "." +
-                (arrived ? " (" + queensBefore + " Queen(s) killed in earlier worlds.)" : ""));
+                (arrived ? "ARRIVED in " : "run started: ") + NgMath.WorldWithRules(plus, Ahead) +
+                " - " + Rules.Summary(RulesPlus) + "." +
+                (arrived ? " (" + queensBefore + " Queen(s) killed in earlier worlds.)" : "") +
+                (Ahead > 0 && !arrived
+                    ? " Your first-world switch is ON: this whole run plays one step on."
+                    : ""));
 
             // Enemy damage reads the world's numbers once, here, rather than on
             // every hit.
@@ -184,7 +209,7 @@ namespace GameModeForge.NewGamePlus
                 {
                     // A save made without New Game Plus installed never locked
                     // any rules. It is plus 0 with none, and stays that way.
-                    Begin(0, NewSeed(), 0, NgRules.None(), false);
+                    Begin(0, NewSeed(), 0, NgRules.None(), false, 0);
                     NewGamePlusPlugin.Log.LogInfo(
                         "this save has no New Game Plus record (it was made without New Game " +
                         "Plus, or before it was installed) - it continues as the first world with " +
@@ -197,7 +222,7 @@ namespace GameModeForge.NewGamePlus
             catch (Exception ex)
             {
                 // A record that cannot be read must not stop the save loading.
-                Begin(0, NewSeed(), 0, NgRules.None(), false);
+                Begin(0, NewSeed(), 0, NgRules.None(), false, 0);
                 NewGamePlusPlugin.Log.LogError(
                     "COULD NOT READ this save's New Game Plus record (" + ex.GetType().Name +
                     ": " + ex.Message + ") - the run continues as the first world with no rules.");
@@ -215,7 +240,7 @@ namespace GameModeForge.NewGamePlus
 
         private static void Read(string[] lines)
         {
-            int plus = 0, seed = 0, queens = 0;
+            int plus = 0, seed = 0, queens = 0, stationsPaid = 0, ahead = 0;
             bool arrivalDone = true;
             string rulesText = null;
             bool sawVersion = false;
@@ -255,6 +280,8 @@ namespace GameModeForge.NewGamePlus
                     case "seed": int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out seed); break;
                     case "queensBefore": int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out queens); break;
                     case "arrived": arrivalDone = value.Trim() != "0"; break;
+                    case "stationsPaid": int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out stationsPaid); break;
+                    case "ahead": int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out ahead); break;
                     case "rules": rulesText = value; break;
                 }
             }
@@ -290,7 +317,12 @@ namespace GameModeForge.NewGamePlus
             if (seed == 0)
                 seed = NewSeed();
 
-            Begin(Math.Max(0, plus), seed, Math.Max(0, queens), rules, false);
+            // A record from before the first-world switch has no "ahead": 0.
+            Begin(Math.Max(0, plus), seed, Math.Max(0, queens), rules, false, ahead);
+
+            // ★ The station ladder's step: the game's own count is not in its
+            // save, so a Continue would make the next station cheap again.
+            NgStations.Paid = Math.Max(0, stationsPaid);
 
             // Saved before the arrival had finished (quit in the first second
             // of a world): the alert is owed, the save is not - this IS it.
@@ -298,7 +330,7 @@ namespace GameModeForge.NewGamePlus
                 NewGamePlusPlugin.Log.LogInfo("(the arrival alert was never shown in this world; it is skipped on a Continue.)");
 
             NewGamePlusPlugin.Log.LogInfo(
-                "continued " + NgMath.WorldName(Plus) + " from the save - " + Rules.Summary(Plus) +
+                "continued " + NgMath.WorldWithRules(Plus, Ahead) + " from the save - " + Rules.Summary(RulesPlus) +
                 ". The same enemies keep the same buffs.");
         }
 
@@ -324,6 +356,8 @@ namespace GameModeForge.NewGamePlus
                 sb.AppendLine("seed\t" + Seed.ToString(CultureInfo.InvariantCulture));
                 sb.AppendLine("queensBefore\t" + QueensBefore.ToString(CultureInfo.InvariantCulture));
                 sb.AppendLine("arrived\t" + (ArrivalPending ? "0" : "1"));
+                sb.AppendLine("stationsPaid\t" + NgStations.Paid.ToString(CultureInfo.InvariantCulture));
+                sb.AppendLine("ahead\t" + Ahead.ToString(CultureInfo.InvariantCulture));
                 sb.AppendLine("rules\t" + Rules.ToJson(false));
 
                 File.WriteAllText(Path.Combine(folder, FileName), sb.ToString());
@@ -376,7 +410,7 @@ namespace GameModeForge.NewGamePlus
 
             // The first world of a run, with a rule already in force from plus
             // 0: say so once. Never on a Continue (said once per world).
-            if (!GameScene.arguments.isContinue && Plus == 0 && Rules.AnyAt(0))
+            if (!GameScene.arguments.isContinue && Plus == 0 && Rules.AnyAt(RulesPlus))
                 _announceAt = Time.unscaledTime + 1.5f;
         }
 
@@ -386,6 +420,7 @@ namespace GameModeForge.NewGamePlus
             try
             {
                 NgBuffs.Tick();
+                NgWeapons.Tick();
                 NgDamage.EndFrame();
                 NgVictory.Tick();
 
@@ -413,7 +448,7 @@ namespace GameModeForge.NewGamePlus
         // naming the plus and its rules - once per world, not on a Continue.
         private static void Announce()
         {
-            string text = NgMath.WorldName(Plus) + " - " + Rules.Summary(Plus);
+            string text = NgMath.WorldWithRules(Plus, Ahead) + " - " + Rules.Summary(RulesPlus);
 
             ShipManager ships;
 

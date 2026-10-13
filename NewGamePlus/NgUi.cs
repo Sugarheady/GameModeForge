@@ -70,10 +70,74 @@ namespace GameModeForge.NewGamePlus
 
             try
             {
-                Tmp.GetProperty("text").SetValue(text, value, null);
+                Tmp.GetProperty("text").SetValue(text, Drawable(text, value), null);
             }
             catch (Exception)
             {
+            }
+        }
+
+        // ★ A FONT WITH NO "%" (R21 part 2, 307: "for some reason the % is
+        // like double the size of the font used for that status text").
+        // Measured off the font assets: `Font_Minimum` - the victory screen's,
+        // the game-over stats', the confirm popup's - has no %, # &, < >, @,
+        // [ ], ^, `, { }, ~, and no fallback font of its own, so TextMeshPro
+        // draws a missing glyph from its global fallback at that font's own
+        // size. The "%" is written as a word instead wherever the font cannot
+        // draw it. (`8-bit-hud SDF`, the options rows' font, has every one.)
+        private static readonly Dictionary<object, bool> _hasPercent = new Dictionary<object, bool>();
+        private static readonly HashSet<string> _saidNoGlyph = new HashSet<string>();
+
+        internal static string Drawable(Component text, string value)
+        {
+            if (string.IsNullOrEmpty(value) || value.IndexOf('%') < 0 || Lacks(text, '%') != true)
+                return value;
+
+            return NgMath.PercentAsWord(value);
+        }
+
+        // true: the text's font cannot draw `c`; false: it can; null: unknown
+        // (then the text is left exactly as it was).
+        private static bool? Lacks(Component text, char c)
+        {
+            try
+            {
+                object font = Tmp.GetProperty("font").GetValue(text, null);
+
+                if (font == null)
+                    return null;
+
+                bool has;
+
+                if (c == '%' && _hasPercent.TryGetValue(font, out has))
+                    return !has;
+
+                MethodInfo m = font.GetType().GetMethod("HasCharacter", new[] { typeof(int) });
+
+                if (m == null)
+                    return null;
+
+                has = (bool)m.Invoke(font, new object[] { (int)c });
+
+                if (c == '%')
+                    _hasPercent[font] = has;
+
+                var named = font as UnityEngine.Object;
+                string name = named != null ? named.name : font.ToString();
+
+                if (!has && _saidNoGlyph.Add(name + c))
+                {
+                    NewGamePlusPlugin.Log.LogInfo(
+                        "the font '" + name + "' has no '" + c + "', so New Game Plus writes it as a " +
+                        "word in that font's texts (TextMeshPro would draw it from another font, " +
+                        "at the wrong size).");
+                }
+
+                return !has;
+            }
+            catch (Exception)
+            {
+                return null;
             }
         }
 
@@ -105,9 +169,112 @@ namespace GameModeForge.NewGamePlus
 
             try
             {
+                // The size too, so a text never stays at its stock size if
+                // auto-sizing does not take (it overrides this when it does).
+                Tmp.GetProperty("fontSize").SetValue(text, max, null);
                 Tmp.GetProperty("fontSizeMax").SetValue(text, max, null);
                 Tmp.GetProperty("fontSizeMin").SetValue(text, min, null);
                 Tmp.GetProperty("enableAutoSizing").SetValue(text, true, null);
+            }
+            catch (Exception)
+            {
+            }
+        }
+
+        // What a fitted text came out at, said each time it is filled: its
+        // size after auto-sizing, its lines, and whether it still overflows
+        // its box. R21 307 could not say whether auto-sizing had taken; the
+        // next run can. Diagnostic only - never throws.
+        internal static void SayFit(Component text, string what, float width, float height)
+        {
+            if (text == null || Tmp == null)
+                return;
+
+            try
+            {
+                MethodInfo force = Tmp.GetMethod("ForceMeshUpdate", new[] { typeof(bool), typeof(bool) });
+
+                if (force != null)
+                    force.Invoke(text, new object[] { true, true });
+
+                object size = Tmp.GetProperty("fontSize").GetValue(text, null);
+                PropertyInfo overP = Tmp.GetProperty("isTextOverflowing");
+                object over = overP != null ? overP.GetValue(text, null) : null;
+                PropertyInfo infoP = Tmp.GetProperty("textInfo");
+                object info = infoP != null ? infoP.GetValue(text, null) : null;
+                FieldInfo linesF = info != null ? info.GetType().GetField("lineCount") : null;
+                object lines = linesF != null ? linesF.GetValue(info) : null;
+                var inv = System.Globalization.CultureInfo.InvariantCulture;
+
+                NewGamePlusPlugin.Log.LogInfo(
+                    what + " came out at size " +
+                    (size is float ? ((float)size).ToString("0.#", inv) : "?") +
+                    (lines != null ? ", " + lines + " line(s)," : "") +
+                    " in its " + width.ToString("0", inv) + " x " + height.ToString("0", inv) + " box" +
+                    (over is bool && (bool)over ? " - and it STILL OVERFLOWS the box" : "") + ".");
+            }
+            catch (Exception)
+            {
+                // A report must never cost the screen.
+            }
+        }
+
+        // Read from the top-left corner (TextAlignmentOptions.TopLeft = 257:
+        // Left 1 | Top 256), set by number because the enum is TextMeshPro's.
+        internal static void AlignTopLeft(Component text)
+        {
+            if (text == null || Tmp == null)
+                return;
+
+            try
+            {
+                PropertyInfo align = Tmp.GetProperty("alignment");
+
+                if (align != null && align.CanWrite && align.PropertyType.IsEnum)
+                    align.SetValue(text, Enum.ToObject(align.PropertyType, 257), null);
+            }
+            catch (Exception)
+            {
+            }
+        }
+
+        // The text's colour (a Graphic's, which TextMeshPro is).
+        internal static void Colour(Component text, Color colour)
+        {
+            try
+            {
+                var g = text as Graphic;
+
+                if (g != null)
+                    g.color = colour;
+            }
+            catch (Exception)
+            {
+            }
+        }
+
+        // Wrapping ON, under whichever name this TextMeshPro has for it:
+        // `textWrappingMode` in the version the game ships (Normal = 1),
+        // `enableWordWrapping` before it.
+        internal static void Wrap(Component text)
+        {
+            if (text == null || Tmp == null)
+                return;
+
+            try
+            {
+                PropertyInfo mode = Tmp.GetProperty("textWrappingMode");
+
+                if (mode != null && mode.CanWrite && mode.PropertyType.IsEnum)
+                {
+                    mode.SetValue(text, Enum.ToObject(mode.PropertyType, 1), null);
+                    return;
+                }
+
+                PropertyInfo wrap = Tmp.GetProperty("enableWordWrapping");
+
+                if (wrap != null && wrap.CanWrite)
+                    wrap.SetValue(text, true, null);
             }
             catch (Exception)
             {
@@ -203,6 +370,7 @@ namespace GameModeForge.NewGamePlus
         // ---- "are you sure?" --------------------------------------------------
 
         private static readonly FieldInfo PromptTitle = AccessTools.Field(typeof(Prompt), "title");
+        private static readonly FieldInfo PromptCanvas = AccessTools.Field(typeof(Prompt), "canvas");
 
         // The game's own confirm popup (`UI/RestartConfirmPopup`, the pause
         // Restart's) with our question on it. The popup's own text is put back
@@ -229,8 +397,16 @@ namespace GameModeForge.NewGamePlus
                 {
                 }
 
+                // ★ NOT NOW - ONCE IT HAS FADED OUT (R21 307). `Close` only
+                // STARTS the popup's close animation. Putting the game's own
+                // title back here swapped "End this run?" for the pause
+                // Restart's question while the popup was still on screen, so
+                // pressing Yes looked like a SECOND prompt opening - "another
+                // prompt came up but like 1 second later i was in the loadout
+                // window". The title goes back once the canvas is off; ending
+                // the run loads a new scene first, and the popup goes with it.
                 if (original != null)
-                    SetText(title, original);
+                    RestoreWhenClosed(prompt, title, question, original);
             };
 
             prompt.Open(
@@ -246,6 +422,43 @@ namespace GameModeForge.NewGamePlus
                 });
 
             return true;
+        }
+
+        private static void RestoreWhenClosed(Prompt prompt, Component title, string ours, string original)
+        {
+            try
+            {
+                prompt.StartCoroutine(RestoreLater(prompt, title, ours, original));
+            }
+            catch (Exception)
+            {
+                // No coroutine (the popup is inactive): put it back now.
+                SetText(title, original);
+            }
+        }
+
+        private static System.Collections.IEnumerator RestoreLater(
+            Prompt prompt, Component title, string ours, string original)
+        {
+            // `Prompt.AnimateClose` switches the canvas off as its last step.
+            // Capped, so a canvas that never goes off cannot keep our words on
+            // the game's popup.
+            float until = Time.unscaledTime + 3f;
+
+            while (Time.unscaledTime < until)
+            {
+                var canvas = PromptCanvas != null ? PromptCanvas.GetValue(prompt) as Canvas : null;
+
+                if (canvas == null || !canvas.enabled)
+                    break;
+
+                yield return null;
+            }
+
+            // Only if it is still OUR question: another Confirm may have put
+            // its own on the popup in the meantime.
+            if (title != null && GetText(title) == ours)
+                SetText(title, original);
         }
 
         internal static void SafeRun(Action a, string what)

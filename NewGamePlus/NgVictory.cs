@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Reflection;
 using HarmonyLib;
 using UnityEngine;
@@ -26,7 +27,9 @@ namespace GameModeForge.NewGamePlus
     //   NEW GAME PLUS  the jump - it does not ask: it is what you just won.
     //   END RUN        asks first (it deletes the save), then the pause
     //                  Restart's own path: DeleteSave, then Restart (the
-    //                  loadout selector).
+    //                  loadout selector). Just before the save goes it raises
+    //                  NgCarry.RunEnding (contract 3, stage 4): the
+    //                  Leaderboard records the run there.
     //
     // The game's screen does not pause time (its UIScreen ships pauseTime 0)
     // and switches your controls to the menu map, so NG+ pauses the world
@@ -131,11 +134,36 @@ namespace GameModeForge.NewGamePlus
             NgUi.SetText(_title, NgMath.WorldName(NgRun.Plus) + " CLEARED");
 
             // What the next world will be like: the rules file as it is now
-            // (they lock at the jump, so this is what you will get).
+            // (they lock at the jump, so this is what you will get). One rule
+            // to a line - R21 300: "a single line below the winning screen
+            // that has all the data on a single line going off screen".
             NgRules next = NgRules.LoadFile();
+            // Read one step on with the first-world switch (the next world's
+            // rules plus is this one's + 1).
+            int nextRules = NgRun.RulesPlus + 1;
+            List<string> rules = next.SummaryParts(nextRules);
+            var lines = new List<string>();
+
+            foreach (string r in rules)
+                lines.Add("enemies " + r);
+
+            // The rules that are not about enemies (the station cost) - no
+            // "enemies" in front.
+            lines.AddRange(next.WorldParts(nextRules));
+
+            // Stage 3: the next world's enemy traits, one line (Enemy Traits'
+            // own rules file, asked by type name; nothing without it).
+            string traits = NgTraitsInfo.NextLine(nextRules);
+
+            if (!string.IsNullOrEmpty(traits))
+                lines.Add(traits);
+
             NgUi.SetText(_subtitle,
-                "All " + BossCount + " Queens are dead.\n" + NgMath.WorldName(NgRun.Plus + 1) +
-                ": " + next.Summary(NgRun.Plus + 1));
+                "All " + BossCount + " Queens are dead.\n" +
+                NgMath.WorldWithRules(NgRun.Plus + 1, NgRun.Ahead) + ":\n" +
+                (lines.Count == 0 ? "no rules in force" : string.Join("\n", lines.ToArray())));
+
+            NgUi.SayFit(_subtitle, "victory screen: the rules block", SubtitleWidth, SubtitleHeight);
 
             TimeManager time;
 
@@ -227,6 +255,11 @@ namespace GameModeForge.NewGamePlus
             if (!ServiceLocator.TryGet<GameController>(out gc) || gc == null)
                 return;
 
+            // ★ CONTRACT 3 (stage 4): the Leaderboard records the run HERE - the
+            // run still loaded, the save not yet gone. Each listener is called
+            // on its own; a throw ends nothing but itself.
+            NgCarry.RaiseRunEnding();
+
             // The pause Restart's own path (PauseScreen.RestartConfirmed).
             if (ServiceLocator.TryGet<Punk.SaveLoad.GameSaver>(out saver) && saver != null)
                 saver.DeleteSave(gc.IsCoop);
@@ -305,12 +338,36 @@ namespace GameModeForge.NewGamePlus
 
             // Measured: the title is a 657-wide box at size 140 (END OF DEMO
             // fits; NEW GAME PLUS 12 CLEARED does not), the subtitle a
-            // 578-wide box at size 70 (THANKS FOR PALYING). Both texts stretch
-            // with their box, so the boxes widen and the text may shrink.
+            // 578 x 112 box at size 70 (THANKS FOR PALYING), its text 255
+            // wider than its box. Both texts stretch with their box, so the
+            // boxes widen and the text may shrink.
             Widen(title, 1500f);
-            Widen(subtitle, 1500f);
             NgUi.Fit(_title, 140f, 48f);
-            NgUi.Fit(_subtitle, 44f, 18f);
+
+            // ★ THE SUBTITLE IS A BLOCK NOW, not a line (R21 300). It sat as one
+            // line about 1,750 wide, which runs off any screen narrower than
+            // 16:9. Now: 1,100 wide, between the title (its bottom at y 79) and
+            // the buttons (their top at y -118), wrapping, shrinking to fit,
+            // one rule to a line (Open).
+            //
+            // ★ R21 part 2, 307: "The font size for the stats ... is too big.
+            // they clip into the buttons". So the box no longer reaches the
+            // buttons (it ends 21 above them, and 10 below the title), the
+            // biggest size is 30 (was 36) and the smallest 14 (was 16), and
+            // Fit sets the size itself too - a text never keeps its stock 70
+            // if auto-sizing does not take. Open logs the size it came out at.
+            Box(subtitle, SubtitleWidth, SubtitleHeight, -14f);
+
+            if (_subtitle != null)
+            {
+                var trt = _subtitle.transform as RectTransform;
+
+                if (trt != null)
+                    trt.sizeDelta = new Vector2(0f, trt.sizeDelta.y);
+            }
+
+            NgUi.Wrap(_subtitle);
+            NgUi.Fit(_subtitle, 30f, 14f);
 
             AnimatedScreen anim = won.GetComponent<AnimatedScreen>();
 
@@ -328,6 +385,9 @@ namespace GameModeForge.NewGamePlus
             return true;
         }
 
+        private const float SubtitleWidth = 1100f;
+        private const float SubtitleHeight = 165f;
+
         private static void Spread(RectTransform rt, float x)
         {
             if (rt != null)
@@ -340,6 +400,17 @@ namespace GameModeForge.NewGamePlus
 
             if (rt != null)
                 rt.sizeDelta = new Vector2(width, rt.sizeDelta.y);
+        }
+
+        private static void Box(Transform t, float width, float height, float y)
+        {
+            var rt = t as RectTransform;
+
+            if (rt == null)
+                return;
+
+            rt.sizeDelta = new Vector2(width, height);
+            rt.anchoredPosition = new Vector2(rt.anchoredPosition.x, y);
         }
     }
 

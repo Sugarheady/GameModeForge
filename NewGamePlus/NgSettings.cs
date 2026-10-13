@@ -30,6 +30,10 @@ namespace GameModeForge.NewGamePlus
         public static ConfigEntry<bool> CarryTotals;
         public static ConfigEntry<bool> KeepResources;
         public static ConfigEntry<bool> EnemyMarker;
+        public static ConfigEntry<bool> HealthBarLayers;
+        public static ConfigEntry<NgLayerPalette> HealthBarPalette;
+        public static ConfigEntry<string> HealthBarLayerColours;
+        public static ConfigEntry<int> HealthBarCountSize;
 
         private const string Carry = "Carry to the next world";
 
@@ -71,8 +75,60 @@ namespace GameModeForge.NewGamePlus
                 "you arrive with what you had when you left.");
 
             EnemyMarker = cfg.Bind("Display", "EnemyMarker", false,
-                "A tiny marker above every enemy New Game Plus has buffed. Off by default. " +
+                "A small amber ring with a plus in it beside every enemy New Game Plus has " +
+                "buffed. Off by default. " +
                 "Never a colour tint - the game's own hit flash owns an enemy's colour.");
+
+            // Stage 2's first piece (2026-10-05), DECIDED: layers for the
+            // Queens and every enemy. A display setting, read live.
+            HealthBarLayers = cfg.Bind("Display", "HealthBarLayers", true,
+                "On (the default): a buffed enemy's health bar stays its normal size and its extra " +
+                "health is stacked in layers of that size - the last layer is the enemy's own bar " +
+                "and colour, the ones above it go green, yellow, orange, red, purple, then round " +
+                "again, with an xN beside the bar counting the layers left. The Queens' bar too. " +
+                "Off: the game's own bars, which grow with the health. Applies at once.");
+
+            // His ask the same day: "a setting that the player can change which
+            // colors those layers are". DECIDED: palettes in the tab, the last
+            // one his own list; the last layer always the enemy's own colour.
+            HealthBarPalette = cfg.Bind("Display", "HealthBarPalette", NgLayerPalette.Classic,
+                "The colours of the layers ABOVE the last one (the last layer is always the " +
+                "enemy's own bar colour). Classic: green, yellow, orange, red, purple. ColourSafe: " +
+                "orange, sky blue, green, yellow, blue - told apart with any colour vision. Ice: " +
+                "white, cyan, blue, indigo, violet. Fire: yellow, gold, orange, red, crimson. " +
+                "Neon: lime, cyan, magenta, yellow, pink. Custom: your own list, " +
+                "HealthBarLayerColours below. The layers take the colours in order and go round " +
+                "again; a colour too like the one under it is skipped. Applies at once.");
+
+            HealthBarLayerColours = cfg.Bind("Display", "HealthBarLayerColours", NgMath.DefaultCustomColours,
+                "Your own layer colours, used when HealthBarPalette is Custom: up to " +
+                NgMath.MaxCustomColours + ", separated by commas, the layer just above the last " +
+                "first. Each one a name (green, yellow, orange, red, purple, blue, cyan, sky blue, " +
+                "teal, lime, gold, crimson, pink, magenta, indigo, violet, white, silver, grey, " +
+                "brown, navy, black) or a hex colour like #FF8800. New Game Plus Builder.html " +
+                "makes this line with colour pickers. One it cannot read is skipped and named in " +
+                "the log; with none it can read, Classic is used.");
+
+            // R21 part 2, his note: "the 2x bubble is pretty big, can you
+            // shrink it down to 1/4 the size? and maybe add a option for the
+            // player to change the scale of that?" 100 is the new size, a
+            // quarter of the first one; 400 is the first one.
+            HealthBarCountSize = cfg.Bind("Display", "HealthBarCountSize", NgMath.CountSizeDefault,
+                "How big the xN beside a layered health bar is, in percent. 100 (the default) is a " +
+                "quarter of the size it first shipped at; 400 is that first size; 0 hides it. The " +
+                "Queens' xN follows the same percent. Applies at once.");
         }
+    }
+
+    // The layer palettes, in NgMath.PaletteNames order (the tab steps through
+    // them by number - pinned).
+    public enum NgLayerPalette
+    {
+        Classic,
+        ColourSafe,
+        Ice,
+        Fire,
+        Neon,
+        Custom,
     }
 }
