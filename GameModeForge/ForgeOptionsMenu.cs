@@ -304,7 +304,23 @@ namespace GameModeForge
             // settings are more than a dozen. The rows are clipped to the
             // tab's own rect and the column is moved by the layout's top
             // padding as the selection moves (and by the mouse wheel).
-            tab.EnableScrolling(clone.GetComponent<VerticalLayoutGroup>());
+            VerticalLayoutGroup scroller = clone.GetComponent<VerticalLayoutGroup>();
+
+            // The restart row under the list, outside the scroll (R21 part 2,
+            // his 273 note). If it cannot be pinned it stays the list's last
+            // row, as before.
+            if (restartItem != null)
+            {
+                VerticalLayoutGroup view = PinBelow(clone, scroller, restartItem, newItems);
+
+                if (view != null)
+                {
+                    scroller = view;
+                    tab.pinned = restartItem;
+                }
+            }
+
+            tab.EnableScrolling(scroller);
             tab.restartItem = restartItem;
             tab.restartLabel = restartLabel;
             tab.confirmPrompt = inRun ? null : FindPrompt();
@@ -362,6 +378,116 @@ namespace GameModeForge
                     ? " - no confirm prompt found, restart will not ask" : ""));
 
             return true;
+        }
+
+        // ★ THE RESTART ROW PINNED UNDER THE LIST. The tab's own rect stays
+        // what it was; the rows that scroll move into a new child,
+        // "ForgeScrollView", that fills it down to one row's height (plus a
+        // gap) above its bottom edge, with a copy of the tab's layout, and the
+        // tab's own layout is switched off. The restart row stays a child of
+        // the tab (so it opens, animates and closes with it) at the bottom,
+        // full width. The scroll's clip goes on the viewport (EnableScrolling),
+        // so the pinned row is never clipped and the rows scroll above it.
+        // Built while the clone is still asleep, like everything else here.
+        // Any failure puts the rows back on the tab and returns null: the tab
+        // then works exactly as before, with the restart row last in the list.
+        private const float PinGap = 12f;
+
+        private static VerticalLayoutGroup PinBelow(
+            GameObject tab, VerticalLayoutGroup own, OptionsMenuItemButtons restart,
+            List<OptionsMenuitemBase> items)
+        {
+            if (own == null || restart == null)
+                return null;
+
+            GameObject viewGo = null;
+            var moved = new List<Transform>();
+
+            try
+            {
+                var restartRt = (RectTransform)restart.transform;
+                float height = restartRt.rect.height > 1f ? restartRt.rect.height : restartRt.sizeDelta.y;
+
+                if (height <= 1f)
+                    height = 150f;
+
+                viewGo = new GameObject("ForgeScrollView", typeof(RectTransform));
+                viewGo.layer = tab.layer;
+
+                var viewRt = (RectTransform)viewGo.transform;
+                viewRt.SetParent(tab.transform, false);
+                viewRt.SetAsFirstSibling();
+                viewRt.anchorMin = new Vector2(0f, 0f);
+                viewRt.anchorMax = new Vector2(1f, 1f);
+                viewRt.pivot = new Vector2(0.5f, 0.5f);
+                viewRt.offsetMin = new Vector2(0f, height + PinGap);
+                viewRt.offsetMax = Vector2.zero;
+                viewRt.localScale = Vector3.one;
+
+                VerticalLayoutGroup view = viewGo.AddComponent<VerticalLayoutGroup>();
+                view.padding = new RectOffset(own.padding.left, own.padding.right, own.padding.top, own.padding.bottom);
+                view.spacing = own.spacing;
+                // By reflection: its type (TextAnchor) is in a Unity module this
+                // csproj does not reference.
+                PropertyInfo align = typeof(LayoutGroup).GetProperty("childAlignment");
+
+                if (align != null)
+                    align.SetValue(view, align.GetValue(own, null), null);
+
+                view.reverseArrangement = own.reverseArrangement;
+                view.childControlWidth = own.childControlWidth;
+                view.childControlHeight = own.childControlHeight;
+                view.childScaleWidth = own.childScaleWidth;
+                view.childScaleHeight = own.childScaleHeight;
+                view.childForceExpandWidth = own.childForceExpandWidth;
+                view.childForceExpandHeight = own.childForceExpandHeight;
+
+                // Every row but the restart, in list order.
+                foreach (OptionsMenuitemBase item in items)
+                {
+                    if (item == null || item == restart)
+                        continue;
+
+                    item.transform.SetParent(viewRt, false);
+                    moved.Add(item.transform);
+                }
+
+                own.enabled = false;
+
+                restartRt.anchorMin = new Vector2(0f, 0f);
+                restartRt.anchorMax = new Vector2(1f, 0f);
+                restartRt.pivot = new Vector2(0.5f, 0f);
+                restartRt.sizeDelta = new Vector2(0f, height);
+                restartRt.anchoredPosition = Vector2.zero;
+                restartRt.SetAsLastSibling();
+
+                GameModeForgePlugin.Log.LogInfo(
+                    "the restart row is pinned under the list, outside the scroll (" + moved.Count +
+                    " row(s) scroll above it).");
+
+                return view;
+            }
+            catch (Exception ex)
+            {
+                foreach (Transform t in moved)
+                    if (t != null)
+                        t.SetParent(tab.transform, false);
+
+                if (restart != null)
+                    restart.transform.SetAsLastSibling();
+
+                if (own != null)
+                    own.enabled = true;
+
+                if (viewGo != null)
+                    UnityEngine.Object.DestroyImmediate(viewGo);
+
+                GameModeForgePlugin.Log.LogWarning(
+                    "the restart row could not be pinned under the list (" + ex.Message + ") - it stays " +
+                    "the list's last row.");
+
+                return null;
+            }
         }
 
         // Deliberately the SAME widget as a toggle rather than a bare button:

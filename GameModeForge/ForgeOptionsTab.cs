@@ -34,6 +34,14 @@ namespace GameModeForge
         public readonly List<SettingRow> settings = new List<SettingRow>();
         public OptionsMenuItemButtons restartItem;
         public GameObject restartLabel;
+
+        // ★ THE RESTART ROW IS PINNED UNDER THE LIST (R21 part 2, his 273
+        // note: "is there a way to have the restart now and not now outside
+        // the scroll area ... That way i dont need to scroll all the way to the
+        // bottom to toggle it?"). It is still the last of `items`, so up / down
+        // reach it as before; it is just never scrolled, and the scrolling rows
+        // live in their own clipped viewport above it (ForgeOptionsMenu.PinBelow).
+        public OptionsMenuitemBase pinned;
         public Prompt confirmPrompt;
 
         // ★ Opened from the PAUSE menu. There is no restart row (restarting
@@ -169,10 +177,11 @@ namespace GameModeForge
 
                 _sliderHandlers.Clear();
 
-                // ★ ANYTHING NOT APPLIED IS DISCARDED. Leaving pending state
-                // behind would mean reopening the tab shows switches in a
-                // position the game is not in - the same lie as reading a
-                // stale config. A refusal has to consume what provoked it.
+                // ★ ANYTHING NOT WRITTEN IS DISCARDED. Every flip is written
+                // as it happens now (OnModToggled), so this only ever undoes
+                // one whose write failed. Leaving pending state behind would
+                // mean reopening the tab shows switches in a position the game
+                // is not in - the same lie as reading a stale config.
                 if (!ForgeRelaunch.InProgress)
                     ForgeModControl.Revert();
             }
@@ -187,13 +196,24 @@ namespace GameModeForge
         {
             row.mod.Pending = (selection == On);
 
-            // Mid-run there is no restart row to apply anything, so write it
-            // now. A failed write puts the switch back where the file is -
-            // a switch showing a value that was never saved is the lie this
-            // tab exists to avoid. (SetSelection re-enters this handler with
-            // the old value; Pending then equals Enabled and nothing is
-            // written twice.)
-            if (inRun && row.mod.Changed && !ForgeModControl.Commit())
+            // ★ WRITTEN THE MOMENT IT IS FLIPPED - in the main menu as well as
+            // mid-run (R21 273). The main menu used to hold a flip as "pending"
+            // until the restart row's Apply, and R21's log shows that restart
+            // with NOTHING written: no "-> ON" line, and the switch he had
+            // flipped came back as it was. What cleared the pending choice
+            // before Apply read it was not found by reading (one OnOpened, no
+            // Refresh, no tab close in that log). The window it fell into is
+            // gone instead: the file holds the choice from the moment the
+            // switch moves, so the restart row, Exit and start again, or a
+            // crash all begin the next launch with it. Mid-run this was already
+            // the only path, and R20 292 passed on it. The row says "ON next
+            // launch" until then (DiffersFromLaunch).
+            //
+            // A failed write puts the switch back where the file is - a switch
+            // showing a value that was never saved is the lie this tab exists
+            // to avoid. (SetSelection re-enters this handler with the old
+            // value; Pending then equals Enabled and nothing is written twice.)
+            if (row.mod.Changed && !ForgeModControl.Commit())
             {
                 row.mod.Pending = row.mod.Enabled;
 
@@ -271,18 +291,34 @@ namespace GameModeForge
             if (_layout == null)
                 return;
 
-            if (GetComponent<RectMask2D>() == null)
-                gameObject.AddComponent<RectMask2D>();
+            // The clip and the wheel catcher go on the layout's own object:
+            // this tab itself mid-run, the viewport above the pinned restart
+            // row in the main menu - the pinned row must not be clipped.
+            GameObject view = _layout.gameObject;
+
+            if (view.GetComponent<RectMask2D>() == null)
+                view.AddComponent<RectMask2D>();
 
             // An invisible backdrop, so the mouse wheel works over the gaps
             // between rows as well as over them (the scroll event goes to what
             // the pointer is over and bubbles up to this component).
-            if (GetComponent<Graphic>() == null)
+            if (view.GetComponent<Graphic>() == null)
             {
-                Image catcher = gameObject.AddComponent<Image>();
+                Image catcher = view.AddComponent<Image>();
                 catcher.color = new Color(0f, 0f, 0f, 0f);
                 catcher.raycastTarget = true;
             }
+        }
+
+        private float ViewHeight()
+        {
+            var rt = (_layout != null ? _layout.transform : transform) as RectTransform;
+            return rt != null ? rt.rect.height : 0f;
+        }
+
+        private bool IsPinned(OptionsMenuitemBase item)
+        {
+            return pinned != null && item == pinned;
         }
 
         // OptionsTab.SetSelected, postfix (ForgeOptionsScrollPatch): keep the
@@ -299,13 +335,18 @@ namespace GameModeForge
                 if (items == null || index < 0 || index >= items.Length)
                     return;
 
+                // The pinned row is always on screen: nothing to scroll to.
+                if (IsPinned(items[index]))
+                    return;
+
                 float top = 0f;
 
                 for (int i = 0; i < index; i++)
-                    top += RowHeight(items[i]) + _layout.spacing;
+                    if (!IsPinned(items[i]))
+                        top += RowHeight(items[i]) + _layout.spacing;
 
                 float height = RowHeight(items[index]);
-                float view = ((RectTransform)transform).rect.height;
+                float view = ViewHeight();
 
                 if (top < _offset)
                     _offset = top;
@@ -347,11 +388,18 @@ namespace GameModeForge
         private void Apply(OptionsMenuitemBase[] items)
         {
             float content = 0f;
+            int counted = 0;
 
             for (int i = 0; i < items.Length; i++)
-                content += RowHeight(items[i]) + (i > 0 ? _layout.spacing : 0f);
+            {
+                if (IsPinned(items[i]))
+                    continue;
 
-            float view = ((RectTransform)transform).rect.height;
+                content += RowHeight(items[i]) + (counted > 0 ? _layout.spacing : 0f);
+                counted++;
+            }
+
+            float view = ViewHeight();
             _offset = Mathf.Clamp(_offset, 0f, Mathf.Max(0f, content - view));
 
             int top = -Mathf.RoundToInt(_offset);
@@ -359,7 +407,19 @@ namespace GameModeForge
             if (_layout.padding.top != top)
             {
                 _layout.padding.top = top;
-                LayoutRebuilder.MarkLayoutForRebuild((RectTransform)transform);
+
+                // ★ R21 PART 3, 327: "it wouldn't let me scroll down past 3
+                // options ... the other options are kind of merging together"
+                // - in the MAIN MENU only; the pause menu's tab was fine. The
+                // rebuild was asked of the TAB's rect. Mid-run the layout IS
+                // the tab's, so that worked. In the main menu the restart row
+                // is pinned (PinBelow): the rows scroll inside ForgeScrollView
+                // and the tab's own layout is switched OFF - and Unity's
+                // MarkLayoutForRebuild finds no enabled layout on the tab, so
+                // it rebuilt nothing, and the new padding sat unused until
+                // something else happened to dirty the view. Rebuild the
+                // object the layout is ON.
+                LayoutRebuilder.MarkLayoutForRebuild((RectTransform)_layout.transform);
             }
         }
 

@@ -121,14 +121,25 @@ namespace GameModeForge
         // New Game Plus continues at normal strength with it switched off).
         //
         // Salvage Shop (2026-10-02) is the fourth, with rows of its own too
-        // (refund %, Bond chance, Ex a scrap, quick salvage). It earns no save
+        // (refund %, Bond chance, Ex a scrap). It earns no save
         // warning: its scrap is two STOCK ingredients and its upgrades are a
         // record beside the save, so a save loads with it off - un-upgraded -
         // and with it back on the upgrades return (its concept, 3.8).
+        //
+        // Enemy Traits (2026-10-12) is the fifth, with rows of its own (each
+        // trait, the volleys, the limit, the marker, the gauge).
+        //
+        // The Leaderboard (2026-10-12, stage 4) is the sixth, with one row:
+        // Record runs.
         private static readonly Entry[] _mods =
         {
+            // Weapon Forge's rows since R21 part 3: the INTERCEPTOR snap
+            // speed slider (his 315 ask, "Can you make a slider for that?").
             new Entry("com.sugarheady.weaponforge", "Weapon Forge",
-                      "WeaponForge.ForgeWeaponStats", true),
+                      "WeaponForge.ForgeWeaponStats", true)
+            {
+                RowsType = "WeaponForge.ForgeSettingsTab"
+            },
             new Entry("com.sugarheady.moduleforge", "Module Forge",
                       "ModuleForge.ModuleForgeRegistry", true),
             new Entry("com.sugarheady.gamemodeforge.pauseoptions", "Pause Options",
@@ -142,6 +153,23 @@ namespace GameModeForge
                       "GameModeForge.SalvageShop.SalvageShopPlugin", false)
             {
                 RowsType = "GameModeForge.SalvageShop.SalvageTab"
+            },
+            // Enemy Traits (2026-10-12, New Game Plus stage 3) is the fifth:
+            // one row per trait, the volleys, the limit, the marker and the
+            // gauge. No save warning - it registers no content; a save loads
+            // with it off and the enemies are as the game made them.
+            new Entry("com.sugarheady.gamemodeforge.enemytraits", "Enemy Traits",
+                      "GameModeForge.EnemyTraits.EnemyTraitsPlugin", false)
+            {
+                RowsType = "GameModeForge.EnemyTraits.EtTab"
+            },
+            // The Leaderboard (2026-10-12, New Game Plus stage 4) is the sixth:
+            // one row, "Record runs". No save warning - it registers no content;
+            // a save loads with it off, and that run is simply not counted.
+            new Entry("com.sugarheady.gamemodeforge.leaderboard", "Leaderboard",
+                      "GameModeForge.Leaderboard.LeaderboardPlugin", false)
+            {
+                RowsType = "GameModeForge.Leaderboard.LbTab"
             },
         };
 
