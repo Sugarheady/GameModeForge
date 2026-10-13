@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Enemy Traits Builder</title>
+<style>
+  :root {
+    --bg: #0d0d11; --panel: #16161d; --panel2: #1d1d27;
+    --line: #2c2c3a; --text: #e8e8f0; --dim: #9a9ab0;
+    --accent: #7fd4ff; --accent2: #ffd27f; --bad: #ff7f7f;
+    --good: #8fe38f;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 14px/1.5 "Segoe UI", system-ui, sans-serif;
+  }
+  header {
+    padding: 14px 24px; border-bottom: 1px solid var(--line);
+    background: var(--panel);
+  }
+  header h1 { margin: 0; font-size: 20px; letter-spacing: 3px; color: var(--accent); }
+  header p { margin: 4px 0 0; color: var(--dim); max-width: 1100px; }
+  .layout {
+    display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+    gap: 16px; padding: 16px 24px 60px; max-width: 1300px;
+  }
+  @media (max-width: 860px) {
+    .layout { grid-template-columns: minmax(0, 1fr); padding: 12px 16px 40px; }
+  }
+  button {
+    background: var(--accent); color: #04141c; border: 0;
+    padding: 8px 14px; font-weight: 700; cursor: pointer;
+    border-radius: 4px; font-size: 13px; letter-spacing: 1px;
+  }
+  button:hover { filter: brightness(1.15); }
+  input[type=number], select {
+    background: #0b0b0f; color: var(--text); border: 1px solid var(--line);
+    border-radius: 4px; padding: 5px 8px; font: inherit; width: 100%;
+  }
+  label.f { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--dim); }
+  label.f span { letter-spacing: .5px; text-transform: uppercase; font-size: 10.5px; }
+  label.c { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; cursor: pointer; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+  section {
+    background: var(--panel2); border: 1px solid var(--line);
+    border-radius: 6px; margin: 0 0 12px; padding: 12px 14px;
+  }
+  section h2 {
+    margin: 0 0 10px; font-size: 12px; letter-spacing: 2px;
+    text-transform: uppercase; color: var(--accent);
+  }
+  section.off .body { opacity: .45; }
+  em { color: var(--dim); font-style: normal; font-size: 12px; display: block; margin-top: 6px; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .presets { display: flex; flex-direction: column; gap: 8px; }
+  .preset { display: flex; gap: 10px; align-items: flex-start; }
+  .preset button { flex: 0 0 auto; min-width: 170px; }
+  .preset div { font-size: 12.5px; color: var(--dim); }
+  pre#output {
+    margin: 0; padding: 10px; background: #0b0b0f; border: 1px solid var(--line);
+    border-radius: 4px; font: 12px/1.45 Consolas, monospace;
+    color: var(--accent2); max-height: 420px; overflow: auto; white-space: pre-wrap;
+  }
+  code { background: #0b0b0f; padding: 1px 4px; border-radius: 3px;
+    font: 12px Consolas, monospace; color: var(--accent2); }
+  /* One number of a trait: its value, what it gains a plus, its cap. */
+  .num { border: 1px solid var(--line); border-radius: 4px; padding: 6px 8px; }
+  .num b { display: block; font-size: 10.5px; letter-spacing: .5px; text-transform: uppercase;
+    color: var(--dim); font-weight: 600; margin-bottom: 4px; }
+  .num .three { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }
+  .num .three input { padding: 4px 5px; }
+  .num small { display: block; font-size: 10px; color: #6f6f86; margin-top: 2px; }
+  .nums { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 8px; margin-top: 8px; }
+  .rewards { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 8px; }
+  .rewards h3 { margin: 0 0 6px; font-size: 11px; letter-spacing: 1.5px; color: var(--accent2); text-transform: uppercase; }
+  .reward { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 8px; align-items: start;
+    border-top: 1px dashed var(--line); padding: 6px 0; }
+  .reward.off .nums { opacity: .4; }
+  .reward .nums { margin-top: 0; }
+  @media (max-width: 560px) { .reward { grid-template-columns: minmax(0, 1fr); } }
+  table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+  th, td { border-bottom: 1px solid var(--line); padding: 4px 6px; text-align: right; vertical-align: top; }
+  th:first-child, td:first-child { text-align: left; white-space: nowrap; }
+  th { color: var(--dim); font-weight: 600; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; }
+  td.zero { color: #55556a; }
+  .scroll { overflow-x: auto; }
+  ul { margin: 0; padding-left: 18px; font-size: 13px; }
+  li { margin-bottom: 3px; }
+  .warn { color: var(--accent2); }
+  #said { font-size: 12.5px; min-height: 18px; margin-top: 8px; }
+  input[type=file] { color: var(--dim); font-size: 12px; max-width: 100%; }
+</style>
+</head>
+<body>
+<header>
+  <h1>ENEMY TRAITS BUILDER</h1>
+  <p>Things enemies can do that make a world harder: <b>wind-up</b>, <b>grow</b>, <b>overload</b> and
+  <b>ricochet</b>. This makes one file, <code>com.sugarheady.gamemodeforge.enemytraits.rules.json</code>,
+  for your <b>BepInEx\config</b> folder (beside the <code>.cfg</code> files). Enemy Traits writes the
+  defaults there the first time it runs. <b>No restart needed:</b> the rules are read when a world begins
+  &mdash; at each New Game Plus jump, and at the start of a run &mdash; and a world keeps the traits it
+  began with, through every save and Continue.</p>
+</header>
+
+<div class="layout">
+<div>
+  <section>
+    <h2>Presets</h2>
+    <div class="presets">
+      <div class="preset"><button type="button" data-preset="default">DEFAULT</button>
+        <div>The shipped rules: all four traits on <b>every</b> enemy, the Queens included, from NEW GAME
+        PLUS 1. The first world is the game as it comes.</div></div>
+      <div class="preset"><button type="button" data-preset="newtrait">A NEW TRAIT EACH PLUS</button>
+        <div>One more trait every world: wind-up from NEW GAME PLUS 1, grow from 2, ricochet from 3,
+        overload from 4. Everything else as DEFAULT.</div></div>
+      <div class="preset"><button type="button" data-preset="test">TEST</button>
+        <div>For trying it out: all four from the <b>first</b> world (so no Queens to kill first, like
+        New Game Plus's own TEST), on every enemy, strong and quick so you can see them: wind-up full in 1 s at x2 fire rate, overload full after 2 s of firing at x3 for
+        4 s, shots swelling to x3, 3 bounces that turn toward you. Switch the <b>overload gauge</b> on in
+        the GAME MODE FORGE tab to watch the meters.</div></div>
+      <div class="preset"><button type="button" data-preset="flat">FLAT</button>
+        <div>All four from the <b>first</b> world (plus 0) &mdash; harder enemies <b>without</b> New Game
+        Plus, where every world is plus 0. With New Game Plus too, they grow each plus from there.</div></div>
+      <div class="preset"><button type="button" data-preset="off">OFF</button>
+        <div>No traits at all.</div></div>
+    </div>
+  </section>
+
+  <section id="sec-common">
+    <h2>Every trait</h2>
+    <div class="grid">
+      <label class="f"><span>volleys</span>
+        <select id="volleys">
+          <option value="speed">speed &mdash; count and speed up</option>
+          <option value="count">count &mdash; at the game's pace</option>
+          <option value="off">off &mdash; only held fire counts</option>
+        </select></label>
+    </div>
+    <em>A <b>volley</b> is a scripted pattern that fires on its own timer &mdash; the Queen's bullet
+    patterns, the crosses, the Fly Zapper. While a pattern runs, the enemy counts as holding the
+    trigger (gaps included) for wind-up and overload. With <b>speed</b> (the default) a wound-up or
+    overloading enemy's patterns come faster too; <b>count</b> leaves their pace alone; <b>off</b> leaves
+    volleys out of the meters.</em>
+    <div style="margin-top:12px; border-top:1px solid var(--line); padding-top:8px" id="sec-limit">
+      <label class="c"><input type="checkbox" id="limit-enabled"> <b>limit</b> how many traits one enemy can have</label>
+      <div class="body">
+        <div class="grid">
+          <label class="f"><span>from plus</span><input type="number" min="0" step="1" id="limit-fromPlus"></label>
+        </div>
+        <div class="nums" id="limit-nums"></div>
+      </div>
+      <em>Off by default: an enemy can have every trait it rolls. With it on, an enemy that rolled
+      more keeps that many, picked by its own seed (the same ones after a Continue).</em>
+    </div>
+  </section>
+
+  <div id="traits"></div>
+
+  <section>
+    <h2>How the numbers stack</h2>
+    <em style="margin-top:0">Every number has three boxes: its value, what it <b>gains a plus</b>, and
+    a <b>cap</b> (blank = none). It counts from its trait's own <b>from plus</b>:
+    <code>value + gain &times; (plus &minus; from plus)</code>, stopped at the cap &mdash; so wind-up's
+    x1.5 fire rate, +0.25 a plus, cap 3 is x1.5 in NEW GAME PLUS 1, x1.75 in 2, x2 in 3. A number that
+    <b>shrinks</b> (a negative gain) stops at its cap from above. <b>Coverage</b> is the share of
+    enemies a trait reaches; which ones is fixed per enemy. Without New Game Plus every world is plus 0.</em>
+  </section>
+</div>
+
+<div>
+  <section>
+    <h2>Each world</h2>
+    <div class="scroll">
+      <table id="preview">
+        <thead><tr><th>world</th><th>wind-up</th><th>grow</th><th>overload</th><th>ricochet</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div id="said"></div>
+  </section>
+
+  <section>
+    <h2>The file</h2>
+    <pre id="output"></pre>
+    <div class="row" style="margin-top:10px">
+      <button type="button" id="b-copy">COPY</button>
+      <button type="button" id="b-save">SAVE .JSON</button>
+      <label style="font-size:12px;color:var(--dim)">LOAD .JSON
+        <input type="file" id="b-load" accept=".json,application/json"></label>
+    </div>
+    <em>Save it as <code>com.sugarheady.gamemodeforge.enemytraits.rules.json</code> in
+    <b>BepInEx\config</b>, replacing the one there.</em>
+  </section>
+
+  <section>
+    <h2>In the game instead</h2>
+    <ul>
+      <li>The <b>GAME MODE FORGE</b> tab in Options has <b>Enemy Traits</b>' own switch and, under it,
+      one row per trait (<b>Trait: wind-up</b>, <b>grow</b>, <b>overload</b>, <b>ricochet</b>), the
+      <b>Volleys</b> slider and the <b>limit</b> &mdash; each writes this same file, keeping
+      everything else, and applies from the next world. A trait's row says when it needs New Game
+      Plus.</li>
+      <li><b>Marker on enemies with traits</b> (off by default) puts New Game Plus's amber ring beside
+      an enemy that got a trait not every enemy gets. <b>Overload gauge on enemies</b> (off by
+      default) draws a very small bar over every enemy with overload: blue as it fills, gold while it
+      is overloaded. Nothing else on screen tells you an enemy is wound up or overloading. Both are
+      in <code>com.sugarheady.gamemodeforge.enemytraits.cfg</code> and apply at once.</li>
+      <li>With New Game Plus installed, its <b>WORLD INFO</b> lists this world's traits with their
+      numbers and how many enemies have each, and its victory screen names the next world's.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>What each trait does</h2>
+    <ul>
+      <li><b>Wind-up</b>: the longer an enemy fires, the better its guns get &mdash; full after the
+      wind-up time, back down when it stops. Its rewards are Module Forge's windup rewards.</li>
+      <li><b>Overload</b>: a hidden meter fills as the enemy fires (or with its shots, or its hits on
+      you); when it is full the enemy overloads and its guns get better for the window. No overheat,
+      no lockout &mdash; only the good half.</li>
+      <li><b>Grow</b>: enemy shots swell as they fly, hitbox included. Size only: damage is New Game
+      Plus's enemy damage.</li>
+      <li><b>Ricochet</b>: enemy shots bounce off walls. Only terrain is a bounce &mdash; touching you,
+      your drones, minions or wingmen ends the shot. A rocket that bounces loses its lock on you and
+      flies off the wall (with <b>toward you</b> on it locks back on). The two bullets that already
+      bounce, and the Queen's and the bombers' drifting mines, keep their own behaviour.</li>
+      <li><b>Fire rate</b>, from either meter, also makes an enemy <b>beam</b> hit you more often (a
+      beam's damage comes in steps, not shots) and an ammo gun cheaper a shot (or a faster gun would
+      only empty sooner).</li>
+      <li>Every enemy that gets a trait keeps it; your own drones and minions never get one. A bullet
+      you knock back keeps its grow and its bounces.</li>
+    </ul>
+  </section>
+</div>
+</div>
+
+<!-- The presets, as plain JSON so a harness can read them without a browser
+     (Harness/etrulesprobe.py parses every one with the built EnemyTraits.dll). -->
+<script type="application/json" id="presets">
+{
+  "default": {
+    "version": 1,
+    "volleys": "speed",
+    "limit": {"enabled": false, "fromPlus": 1, "count": {"start": 1, "perPlus": 1, "max": 4}},
+    "windup": {"enabled": true, "fromPlus": 1, "coverage": 100, "windUpTime": 2, "windDownTime": 1, "grace": 0.25, "ramp": "smooth", "steps": 3,
+      "rewards": {"rate": true, "accuracy": true, "fireRateAtFull": {"start": 1.5, "perPlus": 0.25, "max": 3}, "accuracyAtFull": 0.5}},
+    "grow": {"enabled": true, "fromPlus": 1, "coverage": 100, "from": 1, "to": {"start": 2, "perPlus": 0.5, "max": 4}, "overTime": false, "span": 0, "hitbox": true, "curve": 1, "clamp": true, "rockets": true},
+    "overload": {"enabled": true, "fromPlus": 1, "coverage": 100, "fill": "fire", "fillTime": 4, "shots": 20, "hits": 3, "window": 3, "ramp": "fade", "coolDelay": 1, "coolTime": 8,
+      "rewards": {"rate": true, "accuracy": true, "fireRateAtFull": {"start": 2, "perPlus": 0.25, "max": 4}, "accuracyAtFull": 0.5}},
+    "ricochet": {"enabled": true, "fromPlus": 1, "coverage": 100, "bounces": {"start": 1, "perPlus": 1, "max": 5}, "towardYou": false, "rockets": true, "bounciness": 0.6}
+  },
+  "newtrait": {
+    "version": 1,
+    "volleys": "speed",
+    "limit": {"enabled": false, "fromPlus": 1, "count": {"start": 1, "perPlus": 1, "max": 4}},
+    "windup": {"enabled": true, "fromPlus": 1, "coverage": 100, "windUpTime": 2, "windDownTime": 1, "grace": 0.25, "ramp": "smooth", "steps": 3,
+      "rewards": {"rate": true, "accuracy": true, "fireRateAtFull": {"start": 1.5, "perPlus": 0.25, "max": 3}, "accuracyAtFull": 0.5}},
+    "grow": {"enabled": true, "fromPlus": 2, "coverage": 100, "from": 1, "to": {"start": 2, "perPlus": 0.5, "max": 4}, "overTime": false, "span": 0, "hitbox": true, "curve": 1, "clamp": true, "rockets": true},
+    "overload": {"enabled": true, "fromPlus": 4, "coverage": 100, "fill": "fire", "fillTime": 4, "shots": 20, "hits": 3, "window": 3, "ramp": "fade", "coolDelay": 1, "coolTime": 8,
+      "rewards": {"rate": true, "accuracy": true, "fireRateAtFull": {"start": 2, "perPlus": 0.25, "max": 4}, "accuracyAtFull": 0.5}},
+    "ricochet": {"enabled": true, "fromPlus": 3, "coverage": 100, "bounces": {"start": 1, "perPlus": 1, "max": 5}, "towardYou": false, "rockets": true, "bounciness": 0.6}
+  },
+  "test": {
+    "version": 1,
+    "volleys": "speed",
+    "limit": {"enabled": false, "fromPlus": 1, "count": {"start": 1, "perPlus": 1, "max": 4}},
+    "windup": {"enabled": true, "fromPlus": 0, "coverage": 100, "windUpTime": 1, "windDownTime": 1, "grace": 0.25, "ramp": "smooth", "steps": 3,
+      "rewards": {"rate": true, "accuracy": true, "fireRateAtFull": {"start": 2, "perPlus": 0.5, "max": 4}, "accuracyAtFull": 0.5}},
+    "grow": {"enabled": true, "fromPlus": 0, "coverage": 100, "from": 1, "to": {"start": 3, "perPlus": 0.5, "max": 5}, "overTime": false, "span": 0, "hitbox": true, "curve": 1, "clamp": true, "rockets": true},
+    "overload": {"enabled": true, "fromPlus": 0, "coverage": 100, "fill": "fire", "fillTime": 2, "shots": 20, "hits": 3, "window": 4, "ramp": "fade", "coolDelay": 1, "coolTime": 8,
+      "rewards": {"rate": true, "accuracy": true, "fireRateAtFull": {"start": 3, "perPlus": 0.5, "max": 5}, "accuracyAtFull": 0.5}},
+    "ricochet": {"enabled": true, "fromPlus": 0, "coverage": 100, "bounces": {"start": 3, "perPlus": 1, "max": 6}, "towardYou": true, "rockets": true, "bounciness": 0.6}
+  },
+  "flat": {
+    "version": 1,
+    "volleys": "speed",
+    "limit": {"enabled": false, "fromPlus": 1, "count": {"start": 1, "perPlus": 1, "max": 4}},
+    "windup": {"enabled": true, "fromPlus": 0, "coverage": 100, "windUpTime": 2, "windDownTime": 1, "grace": 0.25, "ramp": "smooth", "steps": 3,
+      "rewards": {"rate": true, "accuracy": true, "fireRateAtFull": {"start": 1.5, "perPlus": 0.25, "max": 3}, "accuracyAtFull": 0.5}},
+    "grow": {"enabled": true, "fromPlus": 0, "coverage": 100, "from": 1, "to": {"start": 2, "perPlus": 0.5, "max": 4}, "overTime": false, "span": 0, "hitbox": true, "curve": 1, "clamp": true, "rockets": true},
+    "overload": {"enabled": true, "fromPlus": 0, "coverage": 100, "fill": "fire", "fillTime": 4, "shots": 20, "hits": 3, "window": 3, "ramp": "fade", "coolDelay": 1, "coolTime": 8,
+      "rewards": {"rate": true, "accuracy": true, "fireRateAtFull": {"start": 2, "perPlus": 0.25, "max": 4}, "accuracyAtFull": 0.5}},
+    "ricochet": {"enabled": true, "fromPlus": 0, "coverage": 100, "bounces": {"start": 1, "perPlus": 1, "max": 5}, "towardYou": false, "rockets": true, "bounciness": 0.6}
+  },
+  "off": {
+    "version": 1,
+    "volleys": "speed",
+    "limit": {"enabled": false, "fromPlus": 1, "count": {"start": 1, "perPlus": 1, "max": 4}},
+    "windup": {"enabled": false, "fromPlus": 1, "coverage": 100, "windUpTime": 2, "windDownTime": 1, "grace": 0.25, "ramp": "smooth", "steps": 3,
+      "rewards": {"rate": true, "accuracy": true, "fireRateAtFull": {"start": 1.5, "perPlus": 0.25, "max": 3}, "accuracyAtFull": 0.5}},
+    "grow": {"enabled": false, "fromPlus": 1, "coverage": 100, "from": 1, "to": {"start": 2, "perPlus": 0.5, "max": 4}, "overTime": false, "span": 0, "hitbox": true, "curve": 1, "clamp": true, "rockets": true},
+    "overload": {"enabled": false, "fromPlus": 1, "coverage": 100, "fill": "fire", "fillTime": 4, "shots": 20, "hits": 3, "window": 3, "ramp": "fade", "coolDelay": 1, "coolTime": 8,
+      "rewards": {"rate": true, "accuracy": true, "fireRateAtFull": {"start": 2, "perPlus": 0.25, "max": 4}, "accuracyAtFull": 0.5}},
+    "ricochet": {"enabled": false, "fromPlus": 1, "coverage": 100, "bounces": {"start": 1, "perPlus": 1, "max": 5}, "towardYou": false, "rockets": true, "bounciness": 0.6}
+  }
+}
+</script>
+
+<!-- What the page draws for each trait - kept in step with EtRules.cs (the
+     harness compares the keys). -->
+<script type="application/json" id="schema">
+{
+  "rewardFlags": ["rate", "accuracy", "damage", "pellets", "cheaper", "speed", "range", "size", "burst", "burn", "explosion", "push", "warmup", "lifetime"],
+  "rewardNumbers": ["fireRateAtFull", "accuracyAtFull", "spreadAtFull", "damageAtFull", "pelletsAtFull", "costAtFull", "speedAtFull", "rangeAtFull", "sizeAtFull", "burstAtFull", "burstDelayAtFull", "burnAtFull", "explosionAtFull", "pushAtFull", "knockbackAtFull", "warmupAtFull", "lifetimeAtFull"],
+  "rewardDefaults": {"fireRateAtFull": 1.5, "accuracyAtFull": 0.5, "spreadAtFull": 1, "damageAtFull": 1.5, "pelletsAtFull": 2, "costAtFull": 0.5, "speedAtFull": 1.5, "rangeAtFull": 1.5, "sizeAtFull": 1.5, "burstAtFull": 2, "burstDelayAtFull": 1, "burnAtFull": 2, "explosionAtFull": 1.5, "pushAtFull": 2, "knockbackAtFull": 1, "warmupAtFull": 0, "lifetimeAtFull": 1.5},
+  "traits": ["windup", "grow", "overload", "ricochet"]
+}
+</script>
+
+<script>
+(function () {
+  "use strict";
+
+  var PRESETS = JSON.parse(document.getElementById("presets").textContent);
+  var SCHEMA = JSON.parse(document.getElementById("schema").textContent);
+
+  // Each reward: its switch, its label, and the numbers it reads.
+  var REWARDS = [
+    ["rate", "fire rate", [["fireRateAtFull", "x fire rate at full"]]],
+    ["accuracy", "tighter aim", [["accuracyAtFull", "share of the scatter removed (1 = pinpoint)"], ["spreadAtFull", "x the deliberate spread (1 = keep)"]]],
+    ["damage", "damage", [["damageAtFull", "x damage at full"]]],
+    ["pellets", "more bullets", [["pelletsAtFull", "x bullets a shot"]]],
+    ["cheaper", "cheaper shots", [["costAtFull", "x ammo a shot"]]],
+    ["speed", "shot speed", [["speedAtFull", "x shot speed"]]],
+    ["range", "range", [["rangeAtFull", "x range"]]],
+    ["size", "shot size", [["sizeAtFull", "x shot size"]]],
+    ["burst", "burst", [["burstAtFull", "x shots a burst"], ["burstDelayAtFull", "x gap in a burst"]]],
+    ["burn", "burn", [["burnAtFull", "x burn"]]],
+    ["explosion", "blast", [["explosionAtFull", "x blast size and damage"]]],
+    ["push", "push", [["pushAtFull", "x push a hit"], ["knockbackAtFull", "x recoil"]]],
+    ["warmup", "warm-up", [["warmupAtFull", "x warm-up (0 = none)"]]],
+    ["lifetime", "lifetime", [["lifetimeAtFull", "x lifetime"]]]
+  ];
+
+  // Each trait: its title, what it does, its numbers, its words and switches.
+  var TRAITS = [
+    { key: "windup", title: "Wind-up",
+      text: "The longer an enemy fires, the better its guns get - full after the wind-up time, back down when it stops (a short grace first). Stepped pays the reward in whole steps.",
+      nums: [["windUpTime", "seconds of firing to full"], ["windDownTime", "seconds to wind down"], ["grace", "seconds before it winds down"]],
+      words: [["ramp", "ramp", ["smooth", "stepped"]]], ints: [["steps", "steps (stepped)"]], bools: [], rewards: true },
+    { key: "grow", title: "Grow",
+      text: "Enemy shots swell as they fly, hitbox included. Size only - damage stays New Game Plus's enemy damage. 1 is a shot's normal size.",
+      nums: [["from", "size when fired"], ["to", "size at the end"], ["span", "over this far / long (0 = the shot's own)"], ["curve", "curve (1 = straight, 2 = late)"]],
+      words: [], ints: [], bools: [["overTime", "over time, not distance"], ["hitbox", "hitbox grows too"], ["clamp", "stop at the end size"], ["rockets", "rockets and bombs too"]], rewards: false },
+    { key: "overload", title: "Overload",
+      text: "A hidden meter fills as the enemy fires (or with its shots, or with its hits on you). Full, it overloads: its guns get better for the window, fading (or flat). No lockout - only the good half. Between windows the meter cools after a pause.",
+      nums: [["fillTime", "seconds of firing to fill"], ["shots", "shots to fill"], ["hits", "hits on you to fill"], ["window", "window, seconds"], ["coolDelay", "seconds before it cools"], ["coolTime", "seconds to cool from full (0 = never)"]],
+      words: [["fill", "fills with", ["fire", "shots", "hits"]], ["ramp", "window", ["fade", "flat"]]], ints: [], bools: [], rewards: true },
+    { key: "ricochet", title: "Ricochet",
+      text: "Enemy shots bounce off walls. Only terrain is a bounce: touching you, your drones, minions or wingmen ends the shot. A bounce drops a rocket's lock; toward you re-aims bullets and rockets at you.",
+      nums: [["bounces", "bounces"], ["bounciness", "lobbed shots' bounciness (rockets keep their speed)"]],
+      words: [], ints: [], bools: [["towardYou", "bounce toward you"], ["rockets", "rockets and bombs too"]], rewards: false }
+  ];
+
+  // ---- one number with its per-plus box --------------------------------------
+
+  function numBox(path, label) {
+    var d = document.createElement("div");
+    d.className = "num";
+    d.innerHTML = "<b>" + label + "</b><div class=three>" +
+      '<input type=number step=any data-num="' + path + '" data-part=start title="value">' +
+      '<input type=number step=any data-num="' + path + '" data-part=perPlus title="gains a plus">' +
+      '<input type=number step=any data-num="' + path + '" data-part=max title="cap (blank = none)" placeholder="no cap">' +
+      "</div><small>value &middot; a plus &middot; cap</small>";
+    return d;
+  }
+
+  function readNum(path) {
+    var get = function (part) {
+      return document.querySelector('[data-num="' + path + '"][data-part=' + part + "]");
+    };
+    var s = parseFloat(get("start").value), p = parseFloat(get("perPlus").value), m = get("max").value.trim();
+    if (!isFinite(s)) s = 0;
+    if (!isFinite(p)) p = 0;
+    // A number with no gain and no cap is written plain, as the DLL writes it.
+    if (p === 0 && m === "") return s;
+    var o = { start: s, perPlus: p };
+    if (m !== "" && isFinite(parseFloat(m))) o.max = parseFloat(m);
+    return o;
+  }
+
+  function writeNum(path, v) {
+    var get = function (part) {
+      return document.querySelector('[data-num="' + path + '"][data-part=' + part + "]");
+    };
+    if (!get("start")) return;
+    if (typeof v === "number") { get("start").value = v; get("perPlus").value = 0; get("max").value = ""; return; }
+    if (!v || typeof v !== "object") return;
+    get("start").value = v.start !== undefined ? v.start : 0;
+    get("perPlus").value = v.perPlus !== undefined ? v.perPlus : 0;
+    get("max").value = v.max !== undefined && v.max !== null ? v.max : "";
+  }
+
+  // EtMath.Stepped: value + gain x (plus - fromPlus), stopped at the cap in
+  // the direction it moves.
+  function at(v, fromPlus, plus) {
+    if (typeof v === "number") return v;
+    var k = Math.max(0, plus - fromPlus);
+    var x = v.start + (v.perPlus || 0) * k;
+    if (v.max !== undefined) {
+      if (v.perPlus > 0 && x > v.max) x = v.max;
+      else if (v.perPlus < 0 && x < v.max) x = v.max;
+    }
+    return x;
+  }
+
+  function coverage(t, plus) {
+    if (!t.enabled || plus < t.fromPlus) return 0;
+    var c = typeof t.coverage === "number" ? t.coverage
+          : t.coverage.start + (t.coverage.perPlus || 0) * Math.max(0, plus - t.fromPlus);
+    return Math.max(0, Math.min(100, c));
+  }
+
+  // ---- the form ---------------------------------------------------------------
+
+  function buildForm() {
+    document.getElementById("limit-nums").appendChild(numBox("limit.count", "at most this many traits"));
+
+    var box = document.getElementById("traits");
+    TRAITS.forEach(function (t) {
+      var s = document.createElement("section");
+      s.id = "sec-" + t.key;
+      s.innerHTML = "<h2>" + t.title + "</h2>" +
+        '<label class=c><input type=checkbox data-flag="' + t.key + '.enabled"> on</label>' +
+        "<div class=body><div class=grid>" +
+        '<label class=f><span>from plus</span><input type=number min=0 step=1 data-int="' + t.key + '.fromPlus"></label>' +
+        t.words.map(function (w) {
+          return '<label class=f><span>' + w[1] + '</span><select data-word="' + t.key + "." + w[0] + '">' +
+            w[2].map(function (o) { return "<option>" + o + "</option>"; }).join("") + "</select></label>";
+        }).join("") +
+        t.ints.map(function (n) {
+          return '<label class=f><span>' + n[1] + '</span><input type=number min=1 step=1 data-int="' + t.key + "." + n[0] + '"></label>';
+        }).join("") +
+        "</div>" +
+        t.bools.map(function (b) {
+          return '<label class=c style="margin-top:8px"><input type=checkbox data-flag="' + t.key + "." + b[0] + '"> ' + b[1] + "</label>";
+        }).join("") +
+        "<div class=nums></div></div><em>" + t.text + "</em>";
+      var nums = s.querySelector(".nums");
+      nums.appendChild(numBox(t.key + ".coverage", "coverage % (share of enemies)"));
+      t.nums.forEach(function (n) { nums.appendChild(numBox(t.key + "." + n[0], n[1])); });
+
+      if (t.rewards) {
+        var r = document.createElement("div");
+        r.className = "rewards";
+        r.innerHTML = "<h3>rewards at full</h3>";
+        REWARDS.forEach(function (rw) {
+          var row = document.createElement("div");
+          row.className = "reward";
+          row.setAttribute("data-reward-row", t.key + "." + rw[0]);
+          row.innerHTML = '<label class=c><input type=checkbox data-flag="' + t.key + ".rewards." + rw[0] + '"> ' + rw[1] + "</label><div class=nums></div>";
+          rw[2].forEach(function (n) { row.querySelector(".nums").appendChild(numBox(t.key + ".rewards." + n[0], n[1])); });
+          r.appendChild(row);
+        });
+        s.querySelector(".body").appendChild(r);
+      }
+
+      box.appendChild(s);
+    });
+  }
+
+  function q(sel) { return document.querySelector(sel); }
+
+  function build() {
+    var out = { version: 1, volleys: q("#volleys").value,
+                limit: { enabled: q("#limit-enabled").checked,
+                         fromPlus: Math.max(0, Math.round(parseFloat(q("#limit-fromPlus").value) || 0)),
+                         count: readNum("limit.count") } };
+
+    TRAITS.forEach(function (t) {
+      var o = { enabled: q('[data-flag="' + t.key + '.enabled"]').checked,
+                fromPlus: Math.max(0, Math.round(parseFloat(q('[data-int="' + t.key + '.fromPlus"]').value) || 0)),
+                coverage: readNum(t.key + ".coverage") };
+      t.words.forEach(function (w) { o[w[0]] = q('[data-word="' + t.key + "." + w[0] + '"]').value; });
+      t.ints.forEach(function (n) { o[n[0]] = Math.max(1, Math.round(parseFloat(q('[data-int="' + t.key + "." + n[0] + '"]').value) || 1)); });
+      t.nums.forEach(function (n) { o[n[0]] = readNum(t.key + "." + n[0]); });
+      t.bools.forEach(function (b) { o[b[0]] = q('[data-flag="' + t.key + "." + b[0] + '"]').checked; });
+
+      if (t.rewards) {
+        var r = {};
+        SCHEMA.rewardFlags.forEach(function (f) { r[f] = q('[data-flag="' + t.key + ".rewards." + f + '"]').checked; });
+        SCHEMA.rewardNumbers.forEach(function (n) { r[n] = readNum(t.key + ".rewards." + n); });
+        o.rewards = r;
+      }
+
+      out[t.key] = o;
+    });
+
+    return out;
+  }
+
+  // A preset or a loaded file names only what it changes: everything else
+  // takes the shipped default, as the DLL does with a five-line file.
+  function fill(obj) {
+    var d = PRESETS["default"];
+    obj = obj || {};
+    q("#volleys").value = obj.volleys || d.volleys;
+    var lim = obj.limit || d.limit;
+    q("#limit-enabled").checked = !!lim.enabled;
+    q("#limit-fromPlus").value = lim.fromPlus !== undefined ? lim.fromPlus : 1;
+    writeNum("limit.count", lim.count !== undefined ? lim.count : d.limit.count);
+
+    TRAITS.forEach(function (t) {
+      var o = obj[t.key] || {}, def = d[t.key];
+      function pick(k) { return o[k] !== undefined ? o[k] : def[k]; }
+      q('[data-flag="' + t.key + '.enabled"]').checked = !!pick("enabled");
+      q('[data-int="' + t.key + '.fromPlus"]').value = pick("fromPlus");
+      writeNum(t.key + ".coverage", pick("coverage"));
+      t.words.forEach(function (w) { q('[data-word="' + t.key + "." + w[0] + '"]').value = pick(w[0]); });
+      t.ints.forEach(function (n) { q('[data-int="' + t.key + "." + n[0] + '"]').value = pick(n[0]); });
+      t.nums.forEach(function (n) { writeNum(t.key + "." + n[0], pick(n[0])); });
+      t.bools.forEach(function (b) { q('[data-flag="' + t.key + "." + b[0] + '"]').checked = !!pick(b[0]); });
+
+      if (t.rewards) {
+        var r = o.rewards || {}, rd = def.rewards;
+        SCHEMA.rewardFlags.forEach(function (f) {
+          q('[data-flag="' + t.key + ".rewards." + f + '"]').checked = r[f] !== undefined ? !!r[f] : !!rd[f];
+        });
+        SCHEMA.rewardNumbers.forEach(function (n) {
+          var v = r[n] !== undefined ? r[n] : (rd[n] !== undefined ? rd[n] : SCHEMA.rewardDefaults[n]);
+          writeNum(t.key + ".rewards." + n, v);
+        });
+      }
+    });
+
+    refresh();
+  }
+
+  function worldName(plus) { return plus <= 0 ? "WORLD 1" : "NEW GAME PLUS " + plus; }
+  function n2(v) { return Math.round(v * 100) / 100; }
+
+  function cell(t, rules, plus) {
+    var c = coverage(rules, plus);
+    if (c <= 0) return null;
+    var from = rules.fromPlus, text;
+    if (t === "windup") {
+      var r = rules.rewards.rate ? "x" + n2(at(rules.rewards.fireRateAtFull, from, plus)) : "no rate";
+      text = r + " in " + n2(at(rules.windUpTime, from, plus)) + "s";
+    } else if (t === "grow") {
+      text = "x" + n2(at(rules.from, from, plus)) + " &rarr; x" + n2(at(rules.to, from, plus));
+    } else if (t === "overload") {
+      var fillText = rules.fill === "shots" ? n2(at(rules.shots, from, plus)) + " shots"
+                   : rules.fill === "hits" ? n2(at(rules.hits, from, plus)) + " hits"
+                   : n2(at(rules.fillTime, from, plus)) + "s";
+      var o = rules.rewards.rate ? "x" + n2(at(rules.rewards.fireRateAtFull, from, plus)) : "no rate";
+      text = o + " " + n2(at(rules.window, from, plus)) + "s, after " + fillText;
+    } else {
+      var b = Math.floor(at(rules.bounces, from, plus) + 0.0001);
+      if (b <= 0) return null;
+      text = b + (b === 1 ? " bounce" : " bounces") + (rules.towardYou ? ", at you" : "");
+    }
+    return text + (c < 100 ? " (" + Math.round(c) + "%)" : "");
+  }
+
+  function refresh() {
+    var r = build();
+
+    TRAITS.forEach(function (t) {
+      document.getElementById("sec-" + t.key).classList.toggle("off", !r[t.key].enabled);
+      if (t.rewards) {
+        REWARDS.forEach(function (rw) {
+          var row = document.querySelector('[data-reward-row="' + t.key + "." + rw[0] + '"]');
+          row.classList.toggle("off", !r[t.key].rewards[rw[0]]);
+        });
+      }
+    });
+    document.getElementById("sec-limit").classList.toggle("off", !r.limit.enabled);
+
+    var body = document.querySelector("#preview tbody");
+    body.innerHTML = "";
+    for (var p = 0; p <= 6; p++) {
+      var tr = document.createElement("tr");
+      var cells = ["windup", "grow", "overload", "ricochet"].map(function (k) { return cell(k, r[k], p); });
+      var limit = r.limit.enabled && p >= r.limit.fromPlus ? Math.floor(at(r.limit.count, r.limit.fromPlus, p) + 0.0001) : -1;
+      tr.innerHTML = "<td>" + worldName(p) + (limit >= 0 ? "<br><small>at most " + limit + "</small>" : "") + "</td>" +
+        cells.map(function (c) { return c === null ? "<td class=zero>-</td>" : "<td>" + c + "</td>"; }).join("");
+      body.appendChild(tr);
+    }
+
+    var said = [];
+    var anyFirst = TRAITS.some(function (t) { return coverage(r[t.key], 0) > 0; });
+    var anyLater = TRAITS.some(function (t) { return r[t.key].enabled && r[t.key].fromPlus > 0; });
+    if (!anyFirst && anyLater)
+      said.push("<span class=warn>Without New Game Plus every world is plus 0, so none of these traits would ever come &mdash; pick FLAT for that.</span>");
+    if (r.overload.enabled && r.overload.fill === "fire" && at(r.overload.coolTime, r.overload.fromPlus, r.overload.fromPlus) <= 0)
+      said.push("A cool time of 0 means the overload meter never cools between fights.");
+    document.getElementById("said").innerHTML = said.join("<br>");
+
+    document.getElementById("output").textContent = JSON.stringify(r, null, 2);
+  }
+
+  buildForm();
+
+  Array.prototype.forEach.call(document.querySelectorAll("input, select"), function (el) {
+    if (el.id === "b-load") return;
+    el.addEventListener("input", refresh);
+    el.addEventListener("change", refresh);
+  });
+
+  Array.prototype.forEach.call(document.querySelectorAll("[data-preset]"), function (b) {
+    b.addEventListener("click", function () {
+      fill(JSON.parse(JSON.stringify(PRESETS[b.getAttribute("data-preset")])));
+    });
+  });
+
+  document.getElementById("b-copy").addEventListener("click", function () {
+    var text = document.getElementById("output").textContent;
+    if (navigator.clipboard) navigator.clipboard.writeText(text);
+  });
+
+  document.getElementById("b-save").addEventListener("click", function () {
+    var blob = new Blob([document.getElementById("output").textContent], { type: "application/json" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "com.sugarheady.gamemodeforge.enemytraits.rules.json";
+    a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+  });
+
+  document.getElementById("b-load").addEventListener("change", function (e) {
+    var f = e.target.files && e.target.files[0];
+    if (!f) return;
+    var reader = new FileReader();
+    reader.onload = function () {
+      try {
+        fill(JSON.parse(reader.result));
+      } catch (err) {
+        document.getElementById("said").innerHTML =
+          "<span class=warn>That file is not valid JSON: " + err.message + "</span>";
+      }
+    };
+    reader.readAsText(f);
+    e.target.value = "";
+  });
+
+  // For a harness: the page's own build() of a preset.
+  window.__etBuildFrom = function (obj) { fill(obj); return build(); };
+
+  fill(JSON.parse(JSON.stringify(PRESETS["default"])));
+})();
+</script>
+</body>
+</html>

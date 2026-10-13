@@ -11,6 +11,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NewGamePlus", "NewGamePlus\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SalvageShop", "SalvageShop\SalvageShop.csproj", "{E5B28D63-9F47-4C10-B2DA-7F3C0A16E824}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EnemyTraits", "EnemyTraits\EnemyTraits.csproj", "{F6C39E74-A058-4D21-C3EB-8A4D1B27F935}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Leaderboard", "Leaderboard\Leaderboard.csproj", "{A7D4E085-B169-4E32-D4FC-9B5E2C38A046}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -33,6 +37,14 @@ Global
 		{E5B28D63-9F47-4C10-B2DA-7F3C0A16E824}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{E5B28D63-9F47-4C10-B2DA-7F3C0A16E824}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{E5B28D63-9F47-4C10-B2DA-7F3C0A16E824}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F6C39E74-A058-4D21-C3EB-8A4D1B27F935}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F6C39E74-A058-4D21-C3EB-8A4D1B27F935}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F6C39E74-A058-4D21-C3EB-8A4D1B27F935}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F6C39E74-A058-4D21-C3EB-8A4D1B27F935}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A7D4E085-B169-4E32-D4FC-9B5E2C38A046}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A7D4E085-B169-4E32-D4FC-9B5E2C38A046}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A7D4E085-B169-4E32-D4FC-9B5E2C38A046}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A7D4E085-B169-4E32-D4FC-9B5E2C38A046}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -61,13 +61,15 @@ rather than burying you in a few hundred "type or namespace not found" errors.
 
 ## Output & deploying
 
-The solution builds **four DLLs**:
+The solution builds **six DLLs**:
 
 | DLL | Lands in |
 |---|---|
 | `GameModeForge.dll` | `GameModeForge\bin\Debug\` |
 | `NewGamePlus.dll` — New Game Plus, a separate mod | `NewGamePlus\bin\Debug\` |
 | `SalvageShop.dll` — the Salvage Shop, a separate mod | `SalvageShop\bin\Debug\` |
+| `EnemyTraits.dll` — Enemy Traits, a separate mod | `EnemyTraits\bin\Debug\` |
+| `Leaderboard.dll` — the Leaderboard, a separate mod | `Leaderboard\bin\Debug\` |
 | `PauseOptions.dll` — Options in the pause menu, a separate mod | `PauseOptions\bin\Debug\` |
 
 Copy any of them into `<PUNK>\BepInEx\plugins\` (their own subfolder is fine) and launch the
@@ -75,7 +77,8 @@ game. None needs another: **New Game Plus**, **Salvage Shop** and **Pause Option
 reference to Game Mode Forge and find its log by type name at run time, like every Forge mod finds
 another. (Salvage Shop finds New Game Plus the same way, to carry upgrades across a jump, and Weapon
 Forge's rank, to warn before a ranked gun is scrapped.) (Weapon Forge
-finds New Game Plus the same way, to carry ranked guns across a jump.)
+finds New Game Plus the same way, to carry ranked guns across a jump.) (The Leaderboard finds New
+Game Plus the same way, to hear END RUN and count every world of a run.)
 
 > **There is no hot reload.** Settings are read at startup, so a change needs a full game restart.
 > The exception is the BepInEx config file, whose entries are followed live — see below.
@@ -84,7 +87,7 @@ finds New Game Plus the same way, to carry ranked guns across a jump.)
 
 **`GameModeForge.dll` registers no world rules — zero, on purpose.** What it does have is a
 **settings tab** in the game's Options screen that switches Weapon Forge, Module Forge, Pause
-Options, New Game Plus and Salvage Shop on and off (and shows New Game Plus's and Salvage Shop's
+Options, New Game Plus, Salvage Shop, Enemy Traits and the Leaderboard on and off (and shows their
 own settings), plus a **restart**
 row (main menu only) that relaunches the game — useful on its own, since neither Forge
 mod has a hot reload and restarting is how a JSON edit is picked up. New Game Plus is its own DLL

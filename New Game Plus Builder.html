@@ -67,10 +67,57 @@
   code { background: #0b0b0f; padding: 1px 4px; border-radius: 3px;
     font: 12px Consolas, monospace; color: var(--accent2); }
   table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+  .wstat { border-top: 1px solid var(--line); padding-top: 8px; margin-top: 10px; }
+  .wstat.off .grid { opacity: .45; }
+  .wstat label.c b { color: var(--accent2); letter-spacing: .5px; }
+  .scroll { overflow-x: auto; }
+  .ingredients { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 8px; }
+  .ing-row { display: grid; grid-template-columns: minmax(0, 1.4fr) repeat(4, minmax(0, 1fr)) auto;
+    gap: 6px; align-items: end; margin-bottom: 6px; }
+  .ing-row select { background: #0b0b0f; color: var(--text); border: 1px solid var(--line);
+    border-radius: 4px; padding: 5px 6px; font: inherit; width: 100%; }
+  .ing-row button { padding: 5px 9px; }
+  @media (max-width: 560px) { .ing-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+  .pal { display: flex; align-items: center; gap: 10px; margin: 0 0 6px; cursor: pointer; font-size: 12.5px; }
+  .pal b { min-width: 104px; letter-spacing: 1px; font-size: 11.5px; }
+  .sw { display: inline-block; width: 18px; height: 12px; border-radius: 2px; margin-right: 3px;
+    border: 1px solid rgba(255,255,255,.18); vertical-align: middle; }
+  .customs { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 8px 0; }
+  .customs span { display: inline-flex; align-items: center; gap: 2px; }
+  .customs input[type=color] { width: 34px; height: 24px; padding: 0; border: 1px solid var(--line);
+    background: none; cursor: pointer; }
+  .customs button { padding: 2px 7px; font-size: 11px; }
+  .bars { display: flex; flex-direction: column; gap: 5px; margin: 8px 0; }
+  .bar { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--dim); }
+  .bar .track { display: flex; width: 180px; max-width: 55%; height: 10px; border-radius: 2px; overflow: hidden; }
+  .bar .track i { display: block; height: 100%; }
+  pre#cfgcolours { margin: 8px 0 0; padding: 8px 10px; background: #0b0b0f; border: 1px solid var(--line);
+    border-radius: 4px; font: 12px/1.45 Consolas, monospace; color: var(--accent2); white-space: pre-wrap; }
   th, td { border-bottom: 1px solid var(--line); padding: 4px 6px; text-align: right; }
   th:first-child, td:first-child { text-align: left; }
   th { color: var(--dim); font-weight: 600; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; }
   td.zero { color: #55556a; }
+  #etable { font-size: 11.5px; width: auto; }
+  /* R21 part 4: the table had 21 columns in half the page, and its sideways
+     scrollbar sat under 66 rows, out of sight - "the table gets cut off from
+     Dark onward". Full width now, in a box that scrolls both ways, with the
+     names and the biome headings held in place. */
+  .wide { padding: 0 24px 60px; max-width: 1800px; }
+  .tablebox { max-height: 75vh; overflow: auto; border: 1px solid var(--line); }
+  #etable thead th { position: sticky; top: 0; background: var(--panel2); z-index: 2; }
+  #etable td:first-child, #etable th:first-child { position: sticky; left: 0; background: var(--panel2); z-index: 1; }
+  #etable thead th:first-child { z-index: 3; }
+  #etable th { text-transform: none; letter-spacing: 0; white-space: nowrap; }
+  #etable th.biome { writing-mode: vertical-rl; transform: rotate(180deg); text-align: left; padding: 6px 2px; }
+  #etable td { padding: 2px 3px; text-align: center; }
+  #etable td:first-child { text-align: left; white-space: nowrap; }
+  #etable td.home { background: #1b2a1b; }
+  #etable td.home input { background: #17351c; border-color: #3f8a49; }
+  #etable input { width: 42px; padding: 2px 3px; text-align: center; }
+  #etable input.w { width: 48px; }
+  #etable tr.grp td { text-align: left; padding: 10px 3px 3px; color: var(--muted, #9aa); font-weight: 600;
+                      background: transparent; border-bottom: 1px solid #333; }
+  #etable td .why { display: block; font-size: 10px; color: var(--muted, #9aa); white-space: normal; max-width: 260px; }
   ul { margin: 0; padding-left: 18px; font-size: 13px; }
   li { margin-bottom: 3px; }
   .warn { color: var(--accent2); }
@@ -100,14 +147,20 @@
         <div>The shipped rules. The first world is the game as it comes; from NEW GAME PLUS 1,
         enemies have +50% health a plus on a share that starts at 25% and rises 25% a plus,
         every room spends +30% a plus more on enemies, and every enemy &mdash; and the world's
-        hazards &mdash; does +100% damage a plus.</div></div>
+        hazards &mdash; does +100% damage a plus. The enemy weapon stats, the station cost, money
+        drops, harder enemies earlier, your enemy table and the first-world switch are off.</div></div>
       <div class="preset"><button type="button" data-preset="test">TEST</button>
         <div>For trying it out: +50% health on <b>every</b> enemy and +30% enemies from the
-        <b>first</b> world (from plus 0), and +100% damage from NEW GAME PLUS 1 &mdash; teleport
-        to the Queens with the debug menu to get there.</div></div>
+        <b>first</b> world (from plus 0), and +100% damage and <b>every enemy weapon stat</b> on
+        every enemy from NEW GAME PLUS 1, and stations cost money there (100, 400, 700&hellip;),
+        money drops +25%, both harder-earlier dials at 25%, and your enemy table brings the Raven
+        into the start biome and the Cross Laser anywhere in Flesh &mdash; teleport to the Queens
+        with the debug menu to get there.</div></div>
       <div class="preset"><button type="button" data-preset="steep">STEEP</button>
-        <div>Hard fast: +100% health a plus on every enemy, +50% enemies a plus and +200% damage
-        a plus, all from NEW GAME PLUS 1.</div></div>
+        <div>Hard fast: +100% health a plus on every enemy, +50% enemies a plus, +200% damage
+        a plus, every enemy weapon stat at twice the default, stations at 200, +500 each (the
+        rise growing 200 a world), and both harder-earlier dials at 50% a plus, all from NEW GAME
+        PLUS 1.</div></div>
       <div class="preset"><button type="button" data-preset="off">OFF</button>
         <div>No buffs at all &mdash; New Game Plus just rerolls the world and keeps your build.</div></div>
     </div>
@@ -165,22 +218,240 @@
     nobody's: they hold loot and are left as they are.</em>
   </section>
 
+  <section id="sec-weapons">
+    <h2>Enemy weapons</h2>
+    <em style="margin-top:0">Each enemy gun stat is a buff of its own, <b>off by default</b>, and
+    each rolls on its own: <b>coverage</b> is the share of enemies that get it (100% = every
+    one), fixed per enemy so a Continue gives the same guns. The Queens get them too; your own
+    drones and minions never do. <b>Damage is not here</b> &mdash; Enemy damage above is the one
+    damage control. The minion and mine launchers (the Queen's, the red crosses', the officer's
+    mines) are left alone: what they launch is an enemy with buffs of its own.</em>
+    <div class="wstat" id="ws-fireRate">
+      <label class="c"><input type="checkbox" data-path="enemyWeapons.fireRate.enabled"> <b>fire rate</b></label>
+      <div class="grid">
+        <label class="f"><span>from plus</span><input type="number" min="0" step="1" data-path="enemyWeapons.fireRate.fromPlus"></label>
+        <label class="f"><span>start %</span><input type="number" step="5" data-path="enemyWeapons.fireRate.start"></label>
+        <label class="f"><span>added a plus %</span><input type="number" step="5" data-path="enemyWeapons.fireRate.perPlus"></label>
+        <label class="f"><span>cap % (0 = none)</span><input type="number" min="0" step="5" data-path="enemyWeapons.fireRate.max"></label>
+        <label class="f"><span>coverage start %</span><input type="number" min="0" max="100" step="5" data-path="enemyWeapons.fireRate.coverageStart"></label>
+        <label class="f"><span>coverage added a plus %</span><input type="number" step="5" data-path="enemyWeapons.fireRate.coveragePerPlus"></label>
+      </div>
+      <label class="c" style="margin-top:8px"><input type="checkbox" data-path="enemyWeapons.volleys"> <b>volleys too</b>
+        &mdash; the scripted patterns (the Queen's bullet patterns, the crosses, the Fly Zapper) fire that much faster</label>
+      <em>shots a second; the gap inside a burst shrinks the same, and a gun that runs on ammo costs that much less a shot, so it really fires more (the AI empties a tank, then waits for it). On a <b>beam</b> the gap between its hits shrinks the same &mdash; a beam fires 20&ndash;60 times a second but hits you once a gap, so that is what makes it hurt faster. A <b>volley</b> fires on its own timer, not the gun's, so with <b>volleys too</b> on (the default) its pattern speeds up by the same amount.</em>
+    </div>
+    <div class="wstat" id="ws-reach">
+      <label class="c"><input type="checkbox" data-path="enemyWeapons.reach.enabled"> <b>reach</b></label>
+      <div class="grid">
+        <label class="f"><span>from plus</span><input type="number" min="0" step="1" data-path="enemyWeapons.reach.fromPlus"></label>
+        <label class="f"><span>start %</span><input type="number" step="5" data-path="enemyWeapons.reach.start"></label>
+        <label class="f"><span>added a plus %</span><input type="number" step="5" data-path="enemyWeapons.reach.perPlus"></label>
+        <label class="f"><span>cap % (0 = none)</span><input type="number" min="0" step="5" data-path="enemyWeapons.reach.max"></label>
+        <label class="f"><span>coverage start %</span><input type="number" min="0" max="100" step="5" data-path="enemyWeapons.reach.coverageStart"></label>
+        <label class="f"><span>coverage added a plus %</span><input type="number" step="5" data-path="enemyWeapons.reach.coveragePerPlus"></label>
+      </div>
+      <em>how far a shot goes: its range, its lifetime, or a beam's length &mdash; whichever the gun has. Enemies still open fire at their usual distance.</em>
+    </div>
+    <div class="wstat" id="ws-speed">
+      <label class="c"><input type="checkbox" data-path="enemyWeapons.speed.enabled"> <b>shot speed</b></label>
+      <div class="grid">
+        <label class="f"><span>from plus</span><input type="number" min="0" step="1" data-path="enemyWeapons.speed.fromPlus"></label>
+        <label class="f"><span>start %</span><input type="number" step="5" data-path="enemyWeapons.speed.start"></label>
+        <label class="f"><span>added a plus %</span><input type="number" step="5" data-path="enemyWeapons.speed.perPlus"></label>
+        <label class="f"><span>cap % (0 = none)</span><input type="number" min="0" step="5" data-path="enemyWeapons.speed.max"></label>
+        <label class="f"><span>coverage start %</span><input type="number" min="0" max="100" step="5" data-path="enemyWeapons.speed.coverageStart"></label>
+        <label class="f"><span>coverage added a plus %</span><input type="number" step="5" data-path="enemyWeapons.speed.coveragePerPlus"></label>
+      </div>
+      <em>how fast a shot flies (a rocket's engine too).</em>
+    </div>
+    <div class="wstat" id="ws-push">
+      <label class="c"><input type="checkbox" data-path="enemyWeapons.push.enabled"> <b>push</b></label>
+      <div class="grid">
+        <label class="f"><span>from plus</span><input type="number" min="0" step="1" data-path="enemyWeapons.push.fromPlus"></label>
+        <label class="f"><span>start %</span><input type="number" step="5" data-path="enemyWeapons.push.start"></label>
+        <label class="f"><span>added a plus %</span><input type="number" step="5" data-path="enemyWeapons.push.perPlus"></label>
+        <label class="f"><span>cap % (0 = none)</span><input type="number" min="0" step="5" data-path="enemyWeapons.push.max"></label>
+        <label class="f"><span>coverage start %</span><input type="number" min="0" max="100" step="5" data-path="enemyWeapons.push.coverageStart"></label>
+        <label class="f"><span>coverage added a plus %</span><input type="number" step="5" data-path="enemyWeapons.push.coveragePerPlus"></label>
+      </div>
+      <em>how hard a hit shoves you.</em>
+    </div>
+    <div class="wstat" id="ws-burn">
+      <label class="c"><input type="checkbox" data-path="enemyWeapons.burn.enabled"> <b>burn</b></label>
+      <div class="grid">
+        <label class="f"><span>from plus</span><input type="number" min="0" step="1" data-path="enemyWeapons.burn.fromPlus"></label>
+        <label class="f"><span>start %</span><input type="number" step="5" data-path="enemyWeapons.burn.start"></label>
+        <label class="f"><span>added a plus %</span><input type="number" step="5" data-path="enemyWeapons.burn.perPlus"></label>
+        <label class="f"><span>cap % (0 = none)</span><input type="number" min="0" step="5" data-path="enemyWeapons.burn.max"></label>
+        <label class="f"><span>coverage start %</span><input type="number" min="0" max="100" step="5" data-path="enemyWeapons.burn.coverageStart"></label>
+        <label class="f"><span>coverage added a plus %</span><input type="number" step="5" data-path="enemyWeapons.burn.coveragePerPlus"></label>
+      </div>
+      <em>the guns that already set you alight burn hotter (the lasers, the Queen's included, the fire rockets, the fireball).</em>
+    </div>
+    <div class="wstat" id="ws-ignite">
+      <label class="c"><input type="checkbox" data-path="enemyWeapons.ignite.enabled"> <b>ignite</b></label>
+      <div class="grid">
+        <label class="f"><span>from plus</span><input type="number" min="0" step="1" data-path="enemyWeapons.ignite.fromPlus"></label>
+        <label class="f"><span>start </span><input type="number" step="1" data-path="enemyWeapons.ignite.start"></label>
+        <label class="f"><span>added a plus </span><input type="number" step="1" data-path="enemyWeapons.ignite.perPlus"></label>
+        <label class="f"><span>cap  (0 = none)</span><input type="number" min="0" step="1" data-path="enemyWeapons.ignite.max"></label>
+        <label class="f"><span>coverage start %</span><input type="number" min="0" max="100" step="5" data-path="enemyWeapons.ignite.coverageStart"></label>
+        <label class="f"><span>coverage added a plus %</span><input type="number" step="5" data-path="enemyWeapons.ignite.coveragePerPlus"></label>
+      </div>
+      <em>every enemy gun that does NOT already burn sets you alight: this much burn a hit (a laser hits many times a second, so it burns faster). Not a percent.</em>
+    </div>
+    <div class="wstat" id="ws-projectiles">
+      <label class="c"><input type="checkbox" data-path="enemyWeapons.projectiles.enabled"> <b>extra projectiles</b></label>
+      <div class="grid">
+        <label class="f"><span>from plus</span><input type="number" min="0" step="1" data-path="enemyWeapons.projectiles.fromPlus"></label>
+        <label class="f"><span>add (whole)</span><input type="number" min="0" step="1" data-path="enemyWeapons.projectiles.add"></label>
+        <label class="f"><span>every (pluses)</span><input type="number" min="1" step="1" data-path="enemyWeapons.projectiles.every"></label>
+        <label class="f"><span>cap (0 = none)</span><input type="number" min="0" step="1" data-path="enemyWeapons.projectiles.max"></label>
+        <label class="f"><span>coverage start %</span><input type="number" min="0" max="100" step="5" data-path="enemyWeapons.projectiles.coverageStart"></label>
+        <label class="f"><span>coverage added a plus %</span><input type="number" step="5" data-path="enemyWeapons.projectiles.coveragePerPlus"></label>
+      </div>
+      <em>whole bullets: <b>add</b> more from <b>from plus</b>, and <b>add</b> more again every <b>every</b> pluses (add 2, every 2: +2, +2, +4, +4&hellip;). A gun that fires straight fans them out 8&deg; apart. Coverage starts at 25% and rises 25% a plus by default.</em>
+    </div>
+    <div class="wstat" id="ws-burst">
+      <label class="c"><input type="checkbox" data-path="enemyWeapons.burst.enabled"> <b>burst shots</b></label>
+      <div class="grid">
+        <label class="f"><span>from plus</span><input type="number" min="0" step="1" data-path="enemyWeapons.burst.fromPlus"></label>
+        <label class="f"><span>add (whole)</span><input type="number" min="0" step="1" data-path="enemyWeapons.burst.add"></label>
+        <label class="f"><span>every (pluses)</span><input type="number" min="1" step="1" data-path="enemyWeapons.burst.every"></label>
+        <label class="f"><span>cap (0 = none)</span><input type="number" min="0" step="1" data-path="enemyWeapons.burst.max"></label>
+        <label class="f"><span>coverage start %</span><input type="number" min="0" max="100" step="5" data-path="enemyWeapons.burst.coverageStart"></label>
+        <label class="f"><span>coverage added a plus %</span><input type="number" step="5" data-path="enemyWeapons.burst.coveragePerPlus"></label>
+      </div>
+      <em>whole shots added to each burst, the same way as extra projectiles.</em>
+    </div>
+  </section>
+
+  <section id="sec-stations">
+    <h2>Station unlock cost</h2>
+    <label class="c"><input type="checkbox" data-path="stationCost.enabled"> on</label>
+    <div class="grid">
+      <label class="f"><span>from plus</span><input type="number" min="0" step="1" data-path="stationCost.fromPlus"></label>
+      <label class="f"><span>first station (money)</span><input type="number" min="0" step="50" data-path="stationCost.first"></label>
+      <label class="f"><span>more each station</span><input type="number" min="0" step="50" data-path="stationCost.rise"></label>
+      <label class="f"><span>the rise grows a plus</span><input type="number" step="50" data-path="stationCost.risePerPlus"></label>
+    </div>
+    <label class="c" style="margin-top:10px"><input type="checkbox" data-path="stationCost.safetyNet"> safety net:
+      a station you cannot afford opens free when your fuel is critical or a co-op partner is down</label>
+    <div class="ingredients">
+      <label class="f"><span>ingredients it takes as well (none by default)</span></label>
+      <div id="ing-rows"></div>
+      <button type="button" class="secondary" id="ing-add">+ ADD AN INGREDIENT</button>
+      <em>Each ingredient: <b>amount</b> at the first station you pay for, <b>+ each station</b> for every
+      station after it in that world, and <b>+ each world</b> for every world past <b>from plus</b>, up
+      to the <b>cap</b> (0 = none). They come out of your vault. Looking at a locked station shows the
+      whole price in your ship's log; the station's own prompt shows the money.</em>
+    </div>
+    <em>Off by default. Unlocking a station (using it the first time) costs money: the first one
+    you pay for in a world costs <b>first station</b>, each after it <b>more each station</b> more
+    (100, 400, 700&hellip;). The ladder starts again in every new world, and the amount it rises
+    by grows by <b>the rise grows a plus</b> each world. The station you start beside is always
+    free, scanner stations are on the same ladder, and the price shows on the station's own
+    unlock prompt. A station you cannot afford stays locked &mdash; and gives no fuel &mdash; so
+    the <b>safety net</b> (off by default) is there if you want it; a free unlock still counts as
+    a step on the ladder.</em>
+  </section>
+
+  <section id="sec-money">
+    <h2>Money drops</h2>
+    <label class="c"><input type="checkbox" data-path="moneyDrops.enabled"> on</label>
+    <div class="grid">
+      <label class="f"><span>from plus</span><input type="number" min="0" step="1" data-path="moneyDrops.fromPlus"></label>
+      <label class="f"><span>start %</span><input type="number" step="5" data-path="moneyDrops.start"></label>
+      <label class="f"><span>added a plus %</span><input type="number" step="5" data-path="moneyDrops.perPlus"></label>
+      <label class="f"><span>cap % (0 = none)</span><input type="number" min="0" step="25" data-path="moneyDrops.max"></label>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <label class="c"><input type="checkbox" data-path="moneyDrops.enemies"> enemies</label>
+      <label class="c"><input type="checkbox" data-path="moneyDrops.queens"> the Queens</label>
+      <label class="c"><input type="checkbox" data-path="moneyDrops.crates"> crates and boxes</label>
+      <label class="c"><input type="checkbox" data-path="moneyDrops.world"> the world (gold in the rock, Wheat)</label>
+    </div>
+    <em>Off by default. <b>More money pickups</b>, the game's own 10, 20 and 50, from every source you
+    tick: +25% is a quarter more pickups, so a pile of 3 is 3 and a 75% chance of a fourth. No cap
+    unless you set one. Money a weapon or module pays for a kill (Weapon Forge, Module Forge) is
+    that mod's own and is not changed.
+    <br><br><b>BIG COINS past double.</b> Money pickups bump into each other, and hundreds made at one
+    spot froze the game (a Queen at +500% for minutes). So a drop gets at most as many extra pickups
+    as it already had (and never more than 50); the money past that comes as a few <b>big coins</b>
+    &mdash; the game's 50, drawn bigger, worth 100 to 100,000. The money is the same either way.</em>
+  </section>
+
+  <section id="sec-harder">
+    <h2>Harder enemies earlier</h2>
+    <em style="margin-top:0">Two dials, <b>both off by default</b>, each decided when a world is
+    made. Every room has a budget that it spends on enemies, small near the start and bigger
+    further out, and some enemy kinds only appear in rooms past a line ("outer rooms only").
+    Both stack with Enemy count; a crowded room still stops early. The Queens are never touched.</em>
+    <div class="wstat" id="hd-budget">
+      <label class="c"><input type="checkbox" data-path="harderEarlier.budget.enabled"> <b>rooms near the start</b></label>
+      <div class="grid">
+        <label class="f"><span>from plus</span><input type="number" min="0" step="1" data-path="harderEarlier.budget.fromPlus"></label>
+        <label class="f"><span>start %</span><input type="number" min="0" step="5" data-path="harderEarlier.budget.start"></label>
+        <label class="f"><span>added a plus %</span><input type="number" step="5" data-path="harderEarlier.budget.perPlus"></label>
+        <label class="f"><span>cap % (100 = all the way)</span><input type="number" min="0" max="100" step="5" data-path="harderEarlier.budget.max"></label>
+      </div>
+      <em>how far the near rooms' budget moves toward the far rooms': 25% a plus is all the way by the fourth.</em>
+    </div>
+    <div class="wstat" id="hd-outerKinds">
+      <label class="c"><input type="checkbox" data-path="harderEarlier.outerKinds.enabled"> <b>far-only enemies closer in</b></label>
+      <div class="grid">
+        <label class="f"><span>from plus</span><input type="number" min="0" step="1" data-path="harderEarlier.outerKinds.fromPlus"></label>
+        <label class="f"><span>start %</span><input type="number" min="0" step="5" data-path="harderEarlier.outerKinds.start"></label>
+        <label class="f"><span>added a plus %</span><input type="number" step="5" data-path="harderEarlier.outerKinds.perPlus"></label>
+        <label class="f"><span>cap % (100 = gone)</span><input type="number" min="0" max="100" step="5" data-path="harderEarlier.outerKinds.max"></label>
+      </div>
+      <em>how far each "outer rooms only" line moves toward the start: 25% a plus and the lines are gone by the fourth.</em>
+    </div>
+  </section>
+
+
+  <section id="sec-first">
+    <h2>The first world</h2>
+    <label class="c"><input type="checkbox" data-path="firstWorldBuffs"> buffs from the first world</label>
+    <em>Off by default. On: a <b>new run</b> plays the whole chain one step on &mdash; the first
+    world by NEW GAME PLUS 1's rules, NEW GAME PLUS 1 by NEW GAME PLUS 2's, and so on, every buff
+    and the station cost included. The titles still count real worlds (WORLD 1 CLEARED); the
+    arrival line and WORLD INFO say whose rules are in force. It is read when a run starts, and
+    that run keeps it.</em>
+  </section>
+
   <section>
     <h2>How the numbers stack</h2>
     <em style="margin-top:0">A buff <b>adds up</b> each plus from the one it starts at:
     <code>start + added &times; (plus &minus; from plus)</code>, up to the cap. So +50% start
     and +50% a plus is +50%, +100%, +150%&hellip; Nothing before <b>from plus</b>; plus 0 is
-    the first world. Coverage ramps the same way and never passes 100%.</em>
+    the first world. Coverage ramps the same way and never passes 100%. Extra projectiles and
+    burst shots are whole numbers instead: <code>add &times; (1 + (plus &minus; from plus) &divide;
+    every)</code>, rounded down inside the brackets, up to the cap.</em>
   </section>
 </div>
 
 <div>
   <section>
     <h2>Each world</h2>
-    <table id="preview">
-      <thead><tr><th>world</th><th>health</th><th>on</th><th>count</th><th>damage</th></tr></thead>
-      <tbody></tbody>
-    </table>
+    <div class="scroll">
+      <table id="preview">
+        <thead><tr><th>world</th><th>health</th><th>on</th><th>bar</th><th>count</th><th>damage</th><th>stations</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="scroll" style="margin-top:10px">
+      <table id="wpreview">
+        <thead><tr><th>world</th><th>rate</th><th>reach</th><th>speed</th><th>push</th><th>burn</th><th>ignite</th><th>proj.</th><th>burst</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="scroll" style="margin-top:10px">
+      <table id="hpreview">
+        <thead><tr><th>world</th><th>money</th><th>near rooms</th><th>far-only</th><th>table</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
     <div id="said"></div>
   </section>
 
@@ -197,51 +468,285 @@
     <b>BepInEx\config</b>, replacing the one there.</em>
   </section>
 
+  <section id="sec-colours">
+    <h2>Health bar colours</h2>
+    <em style="margin-top:0">The colours of a buffed enemy's health bar layers. The <b>last</b>
+    layer is always the enemy's own bar colour (red for most, and the Queens); the layers above
+    it take these colours in order and go round again. A colour too like the one under it is
+    skipped. In the game, <b>Layer colours</b> in the GAME MODE FORGE tab steps through the same
+    palettes. These are display settings in the <code>.cfg</code>, not part of the rules file
+    above, and they apply at once.</em>
+    <div id="palettes" style="margin-top:10px"></div>
+    <div id="custom-box">
+      <div class="customs" id="customs"></div>
+      <div class="row">
+        <button type="button" class="secondary" id="c-add">+ ADD A COLOUR</button>
+        <button type="button" class="secondary" id="c-reset">BACK TO CLASSIC'S FIVE</button>
+      </div>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <label>Layer count size
+        <input type="range" id="c-count" min="0" max="400" step="25" value="100"></label>
+      <span id="c-count-text">100%</span>
+    </div>
+    <em style="margin-top:4px">How big the <b>xN</b> beside a layered bar is. 100% (the default) is a
+    quarter of the size it first shipped at, 400% is that first size, and 0 hides it. The Queens'
+    xN follows the same percent. <b>Layer count size</b> in the GAME MODE FORGE tab is the same
+    setting.</em>
+    <div class="bars" id="bars"></div>
+    <pre id="cfgcolours"></pre>
+    <div class="row" style="margin-top:8px">
+      <button type="button" id="c-copy">COPY THE CFG LINES</button>
+    </div>
+    <em>Paste them under <b>[Display]</b> in
+    <code>com.sugarheady.gamemodeforge.newgameplus.cfg</code> (BepInEx\config), replacing the three
+    lines there.</em>
+  </section>
+
   <section>
     <h2>In the game instead</h2>
     <ul>
       <li>The <b>GAME MODE FORGE</b> tab in Options has three sliders, <b>Enemy health a
       plus</b>, <b>Enemy count a plus</b> and <b>Enemy damage a plus</b>. Each sets that buff's
       start and its added-a-plus to the same number and writes this same file; everything else
-      here is kept. <b>Enemy damage: hazards too</b> is the switch above, in the tab.</li>
+      here is kept. <b>Enemy damage: hazards too</b> is the switch above, in the tab, and so is
+      <b>Station unlock cost</b> (on or off; its numbers are here).</li>
       <li>The same tab has <b>what carries</b> to the next world &mdash; ship grid, vault,
       money, shop stock, shop prices, stations count, ingredients ever owned, run time and
       kills (all on), and whether you arrive on full health, fuel and ammo (the default) or
       keep what you had. Those live in
       <code>com.sugarheady.gamemodeforge.newgameplus.cfg</code>, and are read when you jump.</li>
-      <li><b>Marker on buffed enemies</b> (off by default) puts a tiny marker above each
-      enemy New Game Plus has buffed.</li>
+      <li><b>Marker on buffed enemies</b> (off by default) puts a small amber ring with a plus
+      in it beside each enemy New Game Plus has buffed.</li>
+      <li><b>Health bars in layers</b> (on by default): a buffed enemy's bar stays its normal
+      size and the extra health from <b>Enemy health</b> above is stacked in layers of that
+      size &mdash; the last layer is the enemy's own bar and colour, the ones above it go green,
+      yellow, orange, red, purple, then round again, with an <b>xN</b> beside the bar. So with
+      <b>+100%</b> health an enemy has two layers, and with the TEST preset's +50% the top
+      layer is half a bar. The Queens' bar too. It is a display setting in the
+      <code>.cfg</code> (<code>[Display] HealthBarLayers</code>), not part of this file, and
+      applies at once. <b>Layer colours</b>, the row under it, steps through the palettes in
+      <b>Health bar colours</b> above; its CUSTOM is your own list from the cfg.</li>
     </ul>
   </section>
 </div>
 </div>
+<div class="wide">
+  <section id="sec-table">
+    <h2>Your enemy table</h2>
+    <label class="c"><input type="checkbox" data-path="enemyTable.enabled"> on</label>
+    <em>Every enemy in the game, and every biome. Put a <b>plus number</b> in a box and from that
+    world on the kind may appear in that biome, anywhere in it. A <b>green</b> box is the kind's
+    own biome: a number there drops its "outer rooms only" line (a blank one follows the dial
+    above). <b>weight</b> is how often it is drawn where it is new (blank = its weight at home);
+    <b>cost</b> is what it takes from a room's enemy budget there (blank = its cost at home). The
+    first 25 are the ones the biomes place. <b>Below them is every other enemy</b> &mdash; the
+    Queen, the minions and mines other enemies launch, the ones only special rooms place, your own
+    drones, and the ones only the debug menu spawns. They have no home, so their weight is
+    <b>0</b> (never drawn) until you give one, and their cost is 10. &#9888; Every Queen killed
+    counts toward the 4, so a Queen from the table can end a world sooner. Off and empty by
+    default. <b>The table scrolls in its own box</b> &mdash; sideways for the biomes, down for the enemies &mdash; with the names and the biome headings held in place.</em>
+    <div class="scroll tablebox" style="margin-top:8px"><table id="etable"></table></div>
+  </section>
+</div>
+
+<!-- The game's ingredients, id and shown name: NgMath.KnownIngredients, compared by the harness. -->
+<script type="application/json" id="ingredients-data">
+[["Bond", "Bond"], ["Chip", "Chip"], ["Coral", "Fiber"], ["Ex", "Ex"], ["Face", "Face"],
+ ["Gland", "Gland"], ["Powerstar", "Powerstar"], ["Shell", "Generator"], ["strange_ball", "Strange Ball"]]
+</script>
+
+<!-- The layer palettes, as plain JSON: NgMath.PaletteHex, compared by the harness. -->
+<script type="application/json" id="palettes-data">
+{
+  "CLASSIC":     ["#45DB4D", "#FFDB1F", "#FF8514", "#ED2121", "#A852FF"],
+  "COLOUR-SAFE": ["#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2"],
+  "ICE":         ["#F2FAFF", "#4DE6FF", "#3380FF", "#594DE6", "#A666FF"],
+  "FIRE":        ["#FFEB4D", "#FFBF1A", "#FF8514", "#ED2121", "#990D26"],
+  "NEON":        ["#99FF1A", "#1AFFFF", "#FF33E6", "#FFFF33", "#FF73B3"]
+}
+</script>
+
+<!-- Every ecosystem's enemy list: [kind, weight, outer-rooms line, power].
+     Measured 2026-10-06 off the game's EcoSys assets; the table's rows and columns. -->
+<!-- Every OTHER enemy in the game: [kind, group, where it comes from]. Measured 2026-10-06:
+     the game's savables list (what a load and the debug menu spawn from), kept to Enemy AND an
+     AIAgent - 66 - less the 25 above; each one's "where" is what in the game's assets names it.
+     No home, so weight 0 (never drawn) until its row gives one, cost 10. -->
+<script type="application/json" id="extra-enemies-data">
+[
+  ["Enemy_CrossQueen", "boss", "the Queen (the boss rooms place her). Every Queen killed counts toward the 4, so one from the table can end a world sooner. Untested outside a boss room."],
+  ["Enemy_Child", "minion", "the Queen's minion (her minion gun launches it)"],
+  ["Enemy_Cross Variant Pin", "minion", "launched by the red cross's and the Small Caps cross's minion guns"],
+  ["Unit Cross OneShot 4", "minion", "launched by the Red Bomber cross's minion gun"],
+  ["Unit Mine FloaterOfficerCaps", "minion", "the Caps officer's mine"],
+  ["Unit Cross Jock", "room", "placed by the miniboss rooms"],
+  ["Unit Cross JockBomber", "room", "placed by the miniboss rooms"],
+  ["Unit Cross JockLaser", "room", "placed by the miniboss rooms"],
+  ["Unit Cross JockRocket", "room", "placed by the miniboss rooms"],
+  ["Unit Floater Officer Caps", "room", "placed by the miniboss rooms"],
+  ["Unit Floater Officer Purple", "room", "placed by the miniboss rooms"],
+  ["Unit Cross Small Bomber", "room", "placed by the power-star dungeons (level 1)"],
+  ["Unit Cross Small Caps", "room", "placed by the power-star dungeons (level 1)"],
+  ["Unit Cross Small Electron", "room", "placed by the power-star dungeons (level 1)"],
+  ["Unit Cross Small Purple", "room", "placed by the power-star dungeons (level 1)"],
+  ["Unit Cross Red Bomber", "room", "placed by the power-star dungeons (level 2)"],
+  ["Unit Cross Red Electron", "room", "placed by the power-star dungeons (level 2)"],
+  ["Unit Cross Red Laser", "room", "placed by the power-star dungeons (level 2)"],
+  ["Unit CrawlerRegular", "room", "placed by the Crawler rooms"],
+  ["Unit Swimmer Canari", "room", "placed by the Canari rooms"],
+  ["Enemy_Larva", "room", "dropped by the night drop table"],
+  ["Enemy_Fly Variant Drone", "yours", "your Caps drone gadget's drone. Placed wild it has no owner - untested."],
+  ["Enemy_Fly Variant Drone Electric", "yours", "your Electron drone gadget's drone. Placed wild it has no owner - untested."],
+  ["Enemy_Fly Variant Drone Missile", "yours", "your Purple drone gadget's drone. Placed wild it has no owner - untested."],
+  ["Enemy_Fly Variant Drone Phantom", "yours", "your Phantom drone gadget's drone. Placed wild it has no owner - untested."],
+  ["Enemy_Fly Variant Drone Suicide", "yours", "your Suicide drone gadget's drone. Placed wild it has no owner - untested."],
+  ["Unit Beacon", "yours", "the Beacon item's beacon. Placed wild it has no owner - untested."],
+  ["Dummy", "debug", "only the debug menu spawns it"],
+  ["Enemy_Cross", "debug", "only the debug menu spawns it"],
+  ["Enemy_Cross Variant Alpha", "debug", "only the debug menu spawns it"],
+  ["Enemy_Cross Variant Jock", "debug", "only the debug menu spawns it"],
+  ["Enemy_Cross Variant Laser", "debug", "only the debug menu spawns it"],
+  ["Enemy_Cross Variant Red", "debug", "only the debug menu spawns it"],
+  ["Enemy_Fly Variant Rookie", "debug", "only the debug menu spawns it"],
+  ["Enemy_Fly Variant Soldier", "debug", "only the debug menu spawns it"],
+  ["Enemy_Maggot", "debug", "only the debug menu spawns it"],
+  ["Enemy_Spider", "debug", "only the debug menu spawns it"],
+  ["Enemy_Turret_Bouncer Variant", "debug", "only the debug menu spawns it"],
+  ["Unit Floater Mini Caps", "debug", "only the debug menu spawns it"],
+  ["Unit Hiver", "debug", "only the debug menu spawns it"],
+  ["Unit Spider Regular", "debug", "only the debug menu spawns it"]
+]
+</script>
+
+<script type="application/json" id="ecosystems-data">
+{
+  "Arena": [["Enemy_Cross Variant Tablet", 10.0, 0.0, 1], ["Unit Floater SoldierTech", 3.0, 0.0, 5]],
+  "Cave": [["Enemy_Fish", 20.0, 0.05, 6], ["Unit Floater Mini Purple", 20.0, 0.05, 3], ["Unit Floater SoldierTech", 15.0, 0.0, 4], ["Unit Floater Soldier", 5.0, 0.35, 10], ["Enemy_Turret_Seeker", 15.0, 0.0, 10]],
+  "CaveDeep": [["Enemy_Fish", 20.0, 0.05, 5], ["Unit Floater SoldierTech", 15.0, 0.0, 3], ["Unit Floater Soldier", 5.0, 0.5, 10], ["Enemy_Turret_Seeker", 4.0, 0.0, 12]],
+  "Coal": [["Unit Bouncer Red", 10.0, 0.0, 4], ["Unit Floater Rookie", 2.0, 0.3, 10], ["Enemy_Fly Variant Raven", 2.0, 0.6, 10]],
+  "Crust": [["Enemy_Zipper", 50.0, 0.0, 3], ["Unit Fly Regular", 10.0, 0.0, 3], ["Enemy_Fly Variant Raven", 2.0, 0.2, 12], ["Unit Fly Alfa", 7.0, 0.0, 8], ["Unit Bouncer Worm", 10.0, 0.0, 10]],
+  "Crust Boss": [["Unit Fly Alfa", 20.0, 0.0, 3], ["Enemy_Fly Variant Raven", 10.0, 0.0, 15], ["Unit Floater Soldier", 20.0, 0.0, 20], ["Enemy_Turret_Laser", 4.0, 0.0, 10]],
+  "Dark": [["Enemy_Fly Variant Laser", 10.0, 0.0, 5], ["Enemy_Fly Variant Raven", 40.0, 0.0, 5], ["Unit Bouncer Worm", 1.0, 0.0, 10], ["Unit Fly Zapper", 10.0, 0.0, 10]],
+  "Flesh": [["Unit Fly Grunt", 40.0, 0.0, 1], ["Unit Fly Regular", 20.0, 0.05, 2], ["Unit Cross Regular", 30.0, 0.15, 5], ["Unit Cross Alpha", 15.0, 0.3, 6], ["Enemy_Cross Variant Tablet", 7.0, 0.2, 1], ["Unit Fly Alfa", 8.0, 0.5, 8], ["Unit Fly Dad", 15.0, 0.5, 8], ["Enemy_Turret_Worm", 4.0, 0.4, 5], ["Unit Cross Laser", 6.0, 0.7, 10], ["Unit Bouncer Worm", 6.0, 0.35, 7], ["Unit Floater Rookie", 8.0, 0.7, 20]],
+  "Flesh Easy": [["Unit Fly Grunt", 40.0, 0.0, 1], ["Unit Cross Regular", 20.0, 0.0, 2], ["Unit Fly Regular", 20.0, 0.0, 3], ["Unit Cross Alpha", 10.0, 0.0, 5]],
+  "FleshTechno": [["Unit Cross Regular", 0.0, 1.0, 100]],
+  "Hole": [["Enemy_Cross Variant Tablet", 3.0, 0.0, 2], ["Unit Cross Laser", 1.0, 0.0, 8]],
+  "Mind": [["Enemy_Cross Variant Tablet", 80.0, 0.0, 2], ["Unit Swimmer Maggot", 100.0, 0.07, 3], ["Enemy_Fly Variant Laser", 50.0, 0.2, 8], ["Unit Floater SoldierTech", 15.0, 0.1, 12]],
+  "Mold": [["Enemy_Turret_Sniper", 6.0, 0.0, 10], ["Enemy_Turret_Laser", 4.0, 0.0, 15], ["Unit Floater SoldierPurple", 20.0, 0.0, 10], ["Unit Cross Laser", 10.0, 0.0, 10], ["Enemy_Fly Variant Laser", 3.0, 0.0, 8]],
+  "Moss": [["Enemy_Turret_Sniper", 3.0, 0.3, 10], ["Enemy_Turret_Laser", 4.0, 0.1, 15], ["Enemy_Turret_Worm", 3.0, 0.0, 5], ["Unit Floater Rookie", 10.0, 0.0, 10], ["Unit Floater SoldierPurple", 10.0, 0.0, 10], ["Enemy_Fly Variant Laser", 3.0, 0.0, 8]],
+  "Nest": [["Unit Fly Zapper", 1.0, 0.0, 5]],
+  "Rot": [["Unit Fly Alfa", 1.0, 0.0, 20]],
+  "Techno": [["Unit Fly Zapper", 30.0, 0.0, 5], ["Unit Floater Soldier", 20.0, 0.5, 10]],
+  "Techno Scanner": [["Unit Fly Zapper", 30.0, 0.0, 5], ["Unit Floater Soldier", 20.0, 0.5, 10]]
+}
+</script>
 
 <!-- The presets, as plain JSON so a harness can read them without a browser. -->
 <script type="application/json" id="presets">
 {
   "default": {
-    "version": 2,
-    "enemyHealth": { "enabled": true, "fromPlus": 1, "start": 50, "perPlus": 50, "max": 0, "coverageStart": 25, "coveragePerPlus": 25 },
-    "enemyCount":  { "enabled": true, "fromPlus": 1, "start": 30, "perPlus": 30, "max": 300 },
-    "enemyDamage": { "enabled": true, "fromPlus": 1, "start": 100, "perPlus": 100, "max": 0, "environment": true }
+    "version": 6,
+    "enemyHealth": {"enabled": true, "fromPlus": 1, "start": 50, "perPlus": 50, "max": 0, "coverageStart": 25, "coveragePerPlus": 25},
+    "enemyCount": {"enabled": true, "fromPlus": 1, "start": 30, "perPlus": 30, "max": 300},
+    "enemyDamage": {"enabled": true, "fromPlus": 1, "start": 100, "perPlus": 100, "max": 0, "environment": true},
+    "enemyWeapons": {
+      "fireRate": {"enabled": false, "fromPlus": 1, "start": 20, "perPlus": 20, "max": 0, "coverageStart": 100, "coveragePerPlus": 0},
+      "reach": {"enabled": false, "fromPlus": 1, "start": 20, "perPlus": 20, "max": 0, "coverageStart": 100, "coveragePerPlus": 0},
+      "speed": {"enabled": false, "fromPlus": 1, "start": 15, "perPlus": 15, "max": 0, "coverageStart": 100, "coveragePerPlus": 0},
+      "push": {"enabled": false, "fromPlus": 1, "start": 25, "perPlus": 25, "max": 0, "coverageStart": 100, "coveragePerPlus": 0},
+      "burn": {"enabled": false, "fromPlus": 1, "start": 50, "perPlus": 50, "max": 0, "coverageStart": 100, "coveragePerPlus": 0},
+      "ignite": {"enabled": false, "fromPlus": 1, "start": 1, "perPlus": 1, "max": 0, "coverageStart": 100, "coveragePerPlus": 0},
+      "projectiles": {"enabled": false, "fromPlus": 1, "add": 1, "every": 1, "max": 0, "coverageStart": 25, "coveragePerPlus": 25},
+      "burst": {"enabled": false, "fromPlus": 1, "add": 1, "every": 1, "max": 0, "coverageStart": 100, "coveragePerPlus": 0},
+      "volleys": true
+    },
+    "stationCost": {"enabled": false, "fromPlus": 1, "first": 100, "rise": 300, "risePerPlus": 100, "safetyNet": false, "ingredients": []},
+    "moneyDrops": {"enabled": false, "fromPlus": 1, "start": 25, "perPlus": 25, "max": 0, "enemies": true, "queens": true, "crates": true, "world": true},
+    "harderEarlier": {
+      "budget": {"enabled": false, "fromPlus": 1, "start": 25, "perPlus": 25, "max": 100},
+      "outerKinds": {"enabled": false, "fromPlus": 1, "start": 25, "perPlus": 25, "max": 100}
+    },
+    "enemyTable": {"enabled": false, "rows": []},
+    "firstWorldBuffs": false
   },
   "test": {
-    "version": 2,
-    "enemyHealth": { "enabled": true, "fromPlus": 0, "start": 50, "perPlus": 50, "max": 0, "coverageStart": 100, "coveragePerPlus": 0 },
-    "enemyCount":  { "enabled": true, "fromPlus": 0, "start": 30, "perPlus": 30, "max": 300 },
-    "enemyDamage": { "enabled": true, "fromPlus": 1, "start": 100, "perPlus": 100, "max": 0, "environment": true }
+    "version": 6,
+    "enemyHealth": {"enabled": true, "fromPlus": 0, "start": 50, "perPlus": 50, "max": 0, "coverageStart": 100, "coveragePerPlus": 0},
+    "enemyCount": {"enabled": true, "fromPlus": 0, "start": 30, "perPlus": 30, "max": 300},
+    "enemyDamage": {"enabled": true, "fromPlus": 1, "start": 100, "perPlus": 100, "max": 0, "environment": true},
+    "enemyWeapons": {
+      "fireRate": {"enabled": true, "fromPlus": 1, "start": 20, "perPlus": 20, "max": 0, "coverageStart": 100, "coveragePerPlus": 0},
+      "reach": {"enabled": true, "fromPlus": 1, "start": 20, "perPlus": 20, "max": 0, "coverageStart": 100, "coveragePerPlus": 0},
+      "speed": {"enabled": true, "fromPlus": 1, "start": 15, "perPlus": 15, "max": 0, "coverageStart": 100, "coveragePerPlus": 0},
+      "push": {"enabled": true, "fromPlus": 1, "start": 25, "perPlus": 25, "max": 0, "coverageStart": 100, "coveragePerPlus": 0},
+      "burn": {"enabled": true, "fromPlus": 1, "start": 50, "perPlus": 50, "max": 0, "coverageStart": 100, "coveragePerPlus": 0},
+      "ignite": {"enabled": true, "fromPlus": 1, "start": 1, "perPlus": 1, "max": 0, "coverageStart": 100, "coveragePerPlus": 0},
+      "projectiles": {"enabled": true, "fromPlus": 1, "add": 1, "every": 1, "max": 0, "coverageStart": 100, "coveragePerPlus": 0},
+      "burst": {"enabled": true, "fromPlus": 1, "add": 1, "every": 1, "max": 0, "coverageStart": 100, "coveragePerPlus": 0},
+      "volleys": true
+    },
+    "stationCost": {"enabled": true, "fromPlus": 1, "first": 100, "rise": 300, "risePerPlus": 100, "safetyNet": false, "ingredients": []},
+    "moneyDrops": {"enabled": true, "fromPlus": 1, "start": 25, "perPlus": 25, "max": 0, "enemies": true, "queens": true, "crates": true, "world": true},
+    "harderEarlier": {
+      "budget": {"enabled": true, "fromPlus": 1, "start": 25, "perPlus": 25, "max": 100},
+      "outerKinds": {"enabled": true, "fromPlus": 1, "start": 25, "perPlus": 25, "max": 100}
+    },
+    "enemyTable": {"enabled": true, "rows": [
+      {"kind": "Enemy_Fly Variant Raven", "weight": 10, "from": {"Flesh Easy": 1, "Flesh": 1}},
+      {"kind": "Unit Cross Laser", "weight": 0, "from": {"Flesh": 1}}
+    ]},
+    "firstWorldBuffs": false
   },
   "steep": {
-    "version": 2,
-    "enemyHealth": { "enabled": true, "fromPlus": 1, "start": 100, "perPlus": 100, "max": 0, "coverageStart": 100, "coveragePerPlus": 0 },
-    "enemyCount":  { "enabled": true, "fromPlus": 1, "start": 50, "perPlus": 50, "max": 400 },
-    "enemyDamage": { "enabled": true, "fromPlus": 1, "start": 200, "perPlus": 200, "max": 0, "environment": true }
+    "version": 6,
+    "enemyHealth": {"enabled": true, "fromPlus": 1, "start": 100, "perPlus": 100, "max": 0, "coverageStart": 100, "coveragePerPlus": 0},
+    "enemyCount": {"enabled": true, "fromPlus": 1, "start": 50, "perPlus": 50, "max": 400},
+    "enemyDamage": {"enabled": true, "fromPlus": 1, "start": 200, "perPlus": 200, "max": 0, "environment": true},
+    "enemyWeapons": {
+      "fireRate": {"enabled": true, "fromPlus": 1, "start": 40, "perPlus": 40, "max": 0, "coverageStart": 100, "coveragePerPlus": 0},
+      "reach": {"enabled": true, "fromPlus": 1, "start": 40, "perPlus": 40, "max": 0, "coverageStart": 100, "coveragePerPlus": 0},
+      "speed": {"enabled": true, "fromPlus": 1, "start": 30, "perPlus": 30, "max": 0, "coverageStart": 100, "coveragePerPlus": 0},
+      "push": {"enabled": true, "fromPlus": 1, "start": 50, "perPlus": 50, "max": 0, "coverageStart": 100, "coveragePerPlus": 0},
+      "burn": {"enabled": true, "fromPlus": 1, "start": 100, "perPlus": 100, "max": 0, "coverageStart": 100, "coveragePerPlus": 0},
+      "ignite": {"enabled": true, "fromPlus": 1, "start": 2, "perPlus": 2, "max": 0, "coverageStart": 100, "coveragePerPlus": 0},
+      "projectiles": {"enabled": true, "fromPlus": 1, "add": 1, "every": 1, "max": 0, "coverageStart": 25, "coveragePerPlus": 25},
+      "burst": {"enabled": true, "fromPlus": 1, "add": 1, "every": 1, "max": 0, "coverageStart": 100, "coveragePerPlus": 0},
+      "volleys": true
+    },
+    "stationCost": {"enabled": true, "fromPlus": 1, "first": 200, "rise": 500, "risePerPlus": 200, "safetyNet": false, "ingredients": []},
+    "moneyDrops": {"enabled": false, "fromPlus": 1, "start": 25, "perPlus": 25, "max": 0, "enemies": true, "queens": true, "crates": true, "world": true},
+    "harderEarlier": {
+      "budget": {"enabled": true, "fromPlus": 1, "start": 50, "perPlus": 50, "max": 100},
+      "outerKinds": {"enabled": true, "fromPlus": 1, "start": 50, "perPlus": 50, "max": 100}
+    },
+    "enemyTable": {"enabled": false, "rows": []},
+    "firstWorldBuffs": false
   },
   "off": {
-    "version": 2,
-    "enemyHealth": { "enabled": false, "fromPlus": 1, "start": 50, "perPlus": 50, "max": 0, "coverageStart": 25, "coveragePerPlus": 25 },
-    "enemyCount":  { "enabled": false, "fromPlus": 1, "start": 30, "perPlus": 30, "max": 300 },
-    "enemyDamage": { "enabled": false, "fromPlus": 1, "start": 100, "perPlus": 100, "max": 0, "environment": true }
+    "version": 6,
+    "enemyHealth": {"enabled": false, "fromPlus": 1, "start": 50, "perPlus": 50, "max": 0, "coverageStart": 25, "coveragePerPlus": 25},
+    "enemyCount": {"enabled": false, "fromPlus": 1, "start": 30, "perPlus": 30, "max": 300},
+    "enemyDamage": {"enabled": false, "fromPlus": 1, "start": 100, "perPlus": 100, "max": 0, "environment": true},
+    "enemyWeapons": {
+      "fireRate": {"enabled": false, "fromPlus": 1, "start": 20, "perPlus": 20, "max": 0, "coverageStart": 100, "coveragePerPlus": 0},
+      "reach": {"enabled": false, "fromPlus": 1, "start": 20, "perPlus": 20, "max": 0, "coverageStart": 100, "coveragePerPlus": 0},
+      "speed": {"enabled": false, "fromPlus": 1, "start": 15, "perPlus": 15, "max": 0, "coverageStart": 100, "coveragePerPlus": 0},
+      "push": {"enabled": false, "fromPlus": 1, "start": 25, "perPlus": 25, "max": 0, "coverageStart": 100, "coveragePerPlus": 0},
+      "burn": {"enabled": false, "fromPlus": 1, "start": 50, "perPlus": 50, "max": 0, "coverageStart": 100, "coveragePerPlus": 0},
+      "ignite": {"enabled": false, "fromPlus": 1, "start": 1, "perPlus": 1, "max": 0, "coverageStart": 100, "coveragePerPlus": 0},
+      "projectiles": {"enabled": false, "fromPlus": 1, "add": 1, "every": 1, "max": 0, "coverageStart": 25, "coveragePerPlus": 25},
+      "burst": {"enabled": false, "fromPlus": 1, "add": 1, "every": 1, "max": 0, "coverageStart": 100, "coveragePerPlus": 0},
+      "volleys": true
+    },
+    "stationCost": {"enabled": false, "fromPlus": 1, "first": 100, "rise": 300, "risePerPlus": 100, "safetyNet": false, "ingredients": []},
+    "moneyDrops": {"enabled": false, "fromPlus": 1, "start": 25, "perPlus": 25, "max": 0, "enemies": true, "queens": true, "crates": true, "world": true},
+    "harderEarlier": {
+      "budget": {"enabled": false, "fromPlus": 1, "start": 25, "perPlus": 25, "max": 100},
+      "outerKinds": {"enabled": false, "fromPlus": 1, "start": 25, "perPlus": 25, "max": 100}
+    },
+    "enemyTable": {"enabled": false, "rows": []},
+    "firstWorldBuffs": false
   }
 }
 </script>
@@ -251,7 +756,163 @@
   "use strict";
 
   var PRESETS = JSON.parse(document.getElementById("presets").textContent);
+  var ECOS = JSON.parse(document.getElementById("ecosystems-data").textContent);
+  var EXTRAS = JSON.parse(document.getElementById("extra-enemies-data").textContent);
+  var INGREDIENTS = JSON.parse(document.getElementById("ingredients-data").textContent);
+
+  function ingName(id) {
+    for (var i = 0; i < INGREDIENTS.length; i++) if (INGREDIENTS[i][0] === id) return INGREDIENTS[i][1];
+    return id;
+  }
+
+  // One row of the station's ingredient costs.
+  function ingRow(c) {
+    var row = document.createElement("div");
+    row.className = "ing-row";
+    var opts = INGREDIENTS.map(function (i) {
+      return '<option value="' + i[0] + '"' + (i[0] === c.id ? " selected" : "") + ">" + i[1] + "</option>";
+    }).join("");
+    function box(key, label, min) {
+      return '<label class="f"><span>' + label + '</span><input type="number" step="1"' +
+             (min !== null ? ' min="' + min + '"' : "") + ' data-ing="' + key + '" value="' + c[key] + '"></label>';
+    }
+    row.innerHTML = '<label class="f"><span>ingredient</span><select data-ing="id">' + opts + "</select></label>" +
+      box("amount", "amount", 0) + box("perStation", "+ each station", null) +
+      box("perPlus", "+ each world", null) + box("max", "cap (0 = none)", 0) +
+      '<button type="button" class="secondary" title="remove">x</button>';
+    row.querySelector("button").addEventListener("click", function () { row.remove(); refresh(); });
+    Array.prototype.forEach.call(row.querySelectorAll("select, input"), function (el) {
+      el.addEventListener("input", refresh);
+      el.addEventListener("change", refresh);
+    });
+    return row;
+  }
+
+  function readIngredients() {
+    return Array.prototype.map.call(document.querySelectorAll("#ing-rows .ing-row"), function (row) {
+      function v(key, min) {
+        var n = Math.round(num(row.querySelector('[data-ing="' + key + '"]').value, 0));
+        return min === null ? n : Math.max(min, n);
+      }
+      return { id: row.querySelector('[data-ing="id"]').value, amount: v("amount", 0),
+               perStation: v("perStation", null), perPlus: v("perPlus", null), max: v("max", 0) };
+    });
+  }
+
+  function writeIngredients(list) {
+    var box = document.getElementById("ing-rows");
+    box.innerHTML = "";
+    (list || []).forEach(function (c) { box.appendChild(ingRow(c)); });
+  }
+
+  // NgMath.IngredientCost
+  function ingredientCost(c, fromPlus, plus, paid) {
+    var v = c.amount + c.perStation * Math.max(0, paid) + c.perPlus * Math.max(0, plus - fromPlus);
+    if (c.max > 0 && v > c.max) v = c.max;
+    return v < 0 ? 0 : v;
+  }
   var fields = Array.prototype.slice.call(document.querySelectorAll("[data-path]"));
+
+  // ---- his enemy table: every kind x every biome (ECOS, the game's lists) ----
+  var BIOMES = Object.keys(ECOS).sort();
+  var HOMES = {};          // kind -> { biome: [weight, line, power] }
+  BIOMES.forEach(function (b) {
+    ECOS[b].forEach(function (k) { (HOMES[k[0]] = HOMES[k[0]] || {})[b] = [k[1], k[2], k[3]]; });
+  });
+  var KINDS = Object.keys(HOMES).sort();
+  // His ask (2026-10-06): every enemy in the game, the Queen too - the 25 the
+  // biomes place, then the 41 no biome does (no home: weight 0, cost 10).
+  var ALL = KINDS.concat(EXTRAS.map(function (x) { return x[0]; }));
+  var GROUPS = [["boss", "The Queen"], ["minion", "Launched by other enemies"],
+                ["room", "Placed by special rooms or drops"], ["yours", "Yours (your gadgets and items)"],
+                ["debug", "Only the debug menu spawns these"]];
+  var NO_HOME_COST = 10;   // NgMath.DefaultTablePower
+
+  // Its home: the biome where it has the highest weight (NgWorld does the same,
+  // ties to the first by name).
+  function homeOf(kind) {
+    var best = null;
+    Object.keys(HOMES[kind]).sort().forEach(function (b) {
+      if (best === null || HOMES[kind][b][0] > HOMES[kind][best][0]) best = b;
+    });
+    return best;
+  }
+  function homeWeight(kind) { return HOMES[kind][homeOf(kind)][0]; }
+  function homePower(kind) { return HOMES[kind][homeOf(kind)][2]; }
+
+  function buildTableUi() {
+    var t = document.getElementById("etable");
+    var cols = 3 + BIOMES.length;
+    var head = "<thead><tr><th>kind</th><th>weight</th><th>cost</th>" +
+      BIOMES.map(function (b) { return '<th class="biome">' + b + "</th>"; }).join("") + "</tr></thead>";
+    function row(k, why) {
+      return "<tr><td" + (why ? ' title="' + why + '"' : "") + ">" + k + (why ? '<span class="why">' + why + "</span>" : "") +
+        '</td><td><input class="w" type="number" min="0" step="1" data-tw="' + k +
+        '" placeholder="' + (HOMES[k] ? homeWeight(k) : 0) + '"></td>' +
+        '<td><input class="w" type="number" min="0" step="1" data-tp="' + k +
+        '" placeholder="' + (HOMES[k] ? homePower(k) : NO_HOME_COST) + '"></td>' +
+        BIOMES.map(function (b) {
+          var home = HOMES[k] ? HOMES[k][b] : null;
+          var tip = home ? "its own biome" + (home[1] > 0 ? ": outer rooms only past " + home[1] : "") : "";
+          return "<td" + (home ? ' class="home" title="' + tip + '"' : "") + '><input type="number" min="0" step="1"' +
+            ' data-tk="' + k + '" data-tb="' + b + '"></td>';
+        }).join("") + "</tr>";
+    }
+    var body = '<tr class="grp"><td colspan="' + cols + '">Placed by the biomes</td></tr>' +
+      KINDS.map(function (k) { return row(k, ""); }).join("");
+    GROUPS.forEach(function (g) {
+      var list = EXTRAS.filter(function (x) { return x[1] === g[0]; });
+      if (!list.length) return;
+      body += '<tr class="grp"><td colspan="' + cols + '">' + g[1] + " &mdash; weight 0 until you give one</td></tr>" +
+        list.map(function (x) { return row(x[0], x[2]); }).join("");
+    });
+    t.innerHTML = head + "<tbody>" + body + "</tbody>";
+    Array.prototype.forEach.call(t.querySelectorAll("input"), function (el) {
+      el.addEventListener("input", function () { refresh(); });
+    });
+  }
+
+  function readTable() {
+    var rows = [];
+    ALL.forEach(function (k) {
+      var from = {}, any = false;
+      Array.prototype.forEach.call(document.querySelectorAll('#etable input[data-tk="' + k + '"]'), function (el) {
+        if (el.value === "") return;
+        from[el.getAttribute("data-tb")] = Math.max(0, Math.round(num(el.value, 0)));
+        any = true;
+      });
+      if (!any) return;
+      var w = document.querySelector('#etable input[data-tw="' + k + '"]');
+      var p = document.querySelector('#etable input[data-tp="' + k + '"]');
+      rows.push({ kind: k, weight: w && w.value !== "" ? Math.max(0, num(w.value, 0)) : 0,
+                  power: p && p.value !== "" ? Math.max(0, Math.round(num(p.value, 0))) : 0, from: from });
+    });
+    return rows;
+  }
+
+  function writeTable(rows) {
+    Array.prototype.forEach.call(document.querySelectorAll("#etable input"), function (el) { el.value = ""; });
+    (rows || []).forEach(function (r) {
+      var w = document.querySelector('#etable input[data-tw="' + r.kind + '"]');
+      if (w && r.weight > 0) w.value = r.weight;
+      var p = document.querySelector('#etable input[data-tp="' + r.kind + '"]');
+      if (p && r.power > 0) p.value = r.power;
+      Object.keys(r.from || {}).forEach(function (b) {
+        var el = document.querySelector('#etable input[data-tk="' + r.kind + '"][data-tb="' + b + '"]');
+        if (el) el.value = r.from[b];
+      });
+    });
+  }
+
+  // How many (kind, biome) places the table opens in a world (NgEnemyTable.OpenAt).
+  function tableOpen(e, plus) {
+    if (!e.enabled) return 0;
+    var n = 0;
+    (e.rows || []).forEach(function (r) {
+      Object.keys(r.from || {}).forEach(function (b) { if (r.from[b] >= 0 && plus >= r.from[b]) n++; });
+    });
+    return n;
+  }
 
   function num(v, d) {
     var n = parseFloat(v);
@@ -281,27 +942,73 @@
     return "+" + (Math.round(v * 10) / 10) + "%";
   }
 
+  // Whole-number settings: every one of a step stat's, and every fromPlus.
+  var WHOLE = { fromPlus: 0, add: 0, every: 1, max: 0 };
+  var STEPS = { projectiles: true, burst: true };
+
   function build() {
-    var out = { version: 2, enemyHealth: {}, enemyCount: {}, enemyDamage: {} };
+    var out = { version: 6, enemyHealth: {}, enemyCount: {}, enemyDamage: {}, enemyWeapons: {}, stationCost: {},
+                moneyDrops: {}, harderEarlier: {}, enemyTable: {}, firstWorldBuffs: false };
 
     fields.forEach(function (el) {
       var parts = el.getAttribute("data-path").split(".");
+      var key = parts[parts.length - 1];
+      var whole = key === "fromPlus" || (parts.length === 3 && STEPS[parts[1]] && key in WHOLE);
+      var money = parts[0] === "stationCost";
       var v = el.type === "checkbox" ? el.checked
-            : (parts[1] === "fromPlus" ? Math.max(0, Math.round(num(el.value, 0))) : num(el.value, 0));
-      out[parts[0]][parts[1]] = v;
+            : (whole ? Math.max(WHOLE[key] || 0, Math.round(num(el.value, 0)))
+            : money ? (key === "risePerPlus" ? Math.round(num(el.value, 0)) : Math.max(0, Math.round(num(el.value, 0))))
+            : num(el.value, 0));
+      if (parts.length === 1) { out[key] = v; return; }
+      var box = out[parts[0]];
+      if (parts.length === 3) box = box[parts[1]] = box[parts[1]] || {};
+      box[key] = v;
     });
 
+    out.stationCost.ingredients = readIngredients();
+    out.enemyTable.rows = readTable();
     return out;
+  }
+
+  // NgMath.StationRise / StationPrice: the ladder starts at `first` in every world and
+  // climbs by the rise, which grows by risePerPlus each plus.
+  function stationRise(s, plus) {
+    return Math.max(0, s.rise + s.risePerPlus * Math.max(0, plus - s.fromPlus));
+  }
+  function stationPrice(s, plus, paid) {
+    return Math.max(0, s.first) + stationRise(s, plus) * Math.max(0, paid);
+  }
+  function stationLadder(s, plus) {
+    if (!s.enabled || plus < s.fromPlus) return "-";
+    var text = [0, 1, 2].map(function (n) { return stationPrice(s, plus, n); }).join(", ") + "\u2026";
+    (s.ingredients || []).forEach(function (c) {
+      var n = ingredientCost(c, s.fromPlus, plus, 0);
+      if (n > 0) text += " + " + n + " " + ingName(c.id) + (c.perStation > 0 ? " (+" + c.perStation + ")" : "");
+    });
+    return text;
+  }
+
+  // NgMath.StepValue: add more at fromPlus, and add more again every `every` pluses.
+  function stepValue(s, plus) {
+    if (!s.enabled || plus < s.fromPlus || s.add <= 0) return 0;
+    var steps = s.every <= 1 ? plus - s.fromPlus : Math.floor((plus - s.fromPlus) / s.every);
+    var v = s.add * (1 + steps);
+    if (s.max > 0 && v > s.max) v = s.max;
+    return v;
   }
 
   function fill(obj) {
     fields.forEach(function (el) {
       var parts = el.getAttribute("data-path").split(".");
-      var b = obj[parts[0]] || {};
-      if (!(parts[1] in b)) return;
-      if (el.type === "checkbox") el.checked = !!b[parts[1]];
-      else el.value = b[parts[1]];
+      var b = parts.length === 1 ? obj : (obj[parts[0]] || {});
+      if (parts.length === 3) b = b[parts[1]] || {};
+      var key = parts[parts.length - 1];
+      if (!(key in b)) return;
+      if (el.type === "checkbox") el.checked = !!b[key];
+      else el.value = b[key];
     });
+    writeIngredients((obj.stationCost || {}).ingredients);
+    writeTable((obj.enemyTable || {}).rows);
     refresh();
   }
 
@@ -311,20 +1018,41 @@
     document.getElementById("sec-health").classList.toggle("off", !r.enemyHealth.enabled);
     document.getElementById("sec-count").classList.toggle("off", !r.enemyCount.enabled);
     document.getElementById("sec-damage").classList.toggle("off", !r.enemyDamage.enabled);
+    document.getElementById("sec-stations").classList.toggle("off", !r.stationCost.enabled);
+    document.getElementById("sec-money").classList.toggle("off", !r.moneyDrops.enabled);
+    document.getElementById("hd-budget").classList.toggle("off", !r.harderEarlier.budget.enabled);
+    document.getElementById("hd-outerKinds").classList.toggle("off", !r.harderEarlier.outerKinds.enabled);
+    document.getElementById("sec-table").classList.toggle("off", !r.enemyTable.enabled);
+
+    // His first-world switch: every world's rules are read one step on
+    // (NgMath.RulesPlus); the world names stay real.
+    var ahead = r.firstWorldBuffs ? 1 : 0;
+    function label(p) { return worldName(p) + (ahead ? " (NG+" + (p + ahead) + " rules)" : ""); }
+    Object.keys(r.enemyWeapons).forEach(function (k) {
+      var el = document.getElementById("ws-" + k);
+      if (el) el.classList.toggle("off", !r.enemyWeapons[k].enabled);
+    });
 
     var body = document.querySelector("#preview tbody");
     body.innerHTML = "";
 
-    for (var p = 0; p <= 8; p++) {
+    for (var w0 = 0; w0 <= 8; w0++) {
+      var p = w0 + ahead;
       var h = value(r.enemyHealth, p);
       var hc = h > 0 ? coverage(r.enemyHealth, p) : 0;
       var c = value(r.enemyCount, p);
       var d = value(r.enemyDamage, p);
       var tr = document.createElement("tr");
 
-      [worldName(p), h > 0 ? pct(h) : "-", hc > 0 ? Math.round(hc) + "% of enemies" : "-",
+      // A buffed enemy's bar in layers (the cfg's HealthBarLayers): one
+      // layer is its normal health, so +100% is two - NgMath.LayerCount.
+      var layers = h > 0 ? Math.max(1, Math.ceil(1 + h / 100 - 0.0001)) : 1;
+
+      [label(w0), h > 0 ? pct(h) : "-", hc > 0 ? Math.round(hc) + "% of enemies" : "-",
+       layers > 1 ? "x" + layers + " layers" : "-",
        c > 0 ? pct(c) : "-",
-       d > 0 ? pct(d) + (r.enemyDamage.environment ? " + hazards" : "") : "-"].forEach(function (text, i) {
+       d > 0 ? pct(d) + (r.enemyDamage.environment ? " + hazards" : "") : "-",
+       stationLadder(r.stationCost, p)].forEach(function (text, i) {
         var td = document.createElement("td");
         td.textContent = text;
         if (text === "-") td.className = "zero";
@@ -334,7 +1062,73 @@
       body.appendChild(tr);
     }
 
+    // The weapon stats, each world.
+    var wbody = document.querySelector("#wpreview tbody");
+    wbody.innerHTML = "";
+    var w = r.enemyWeapons, anyWeapon = false;
+
+    for (var q0 = 0; q0 <= 8; q0++) {
+      var q = q0 + ahead;
+      var row = document.createElement("tr");
+      var cells = [label(q0)];
+
+      ["fireRate", "reach", "speed", "push", "burn", "ignite", "projectiles", "burst"].forEach(function (k) {
+        var s = w[k], step = STEPS[k];
+        var v = step ? stepValue(s, q) : value(s, q);
+        var c = v > 0 ? coverage(s, q) : 0;
+        if (v > 0 && c > 0) anyWeapon = true;
+        cells.push(v > 0 && c > 0
+          ? (step ? "+" + v : (k === "ignite" ? String(Math.round(v * 10) / 10) : pct(v))) +
+            (c < 100 ? " (" + Math.round(c) + "%)" : "")
+          : "-");
+      });
+
+      cells.forEach(function (text) {
+        var td = document.createElement("td");
+        td.textContent = text;
+        if (text === "-") td.className = "zero";
+        row.appendChild(td);
+      });
+
+      wbody.appendChild(row);
+    }
+
+    document.getElementById("wpreview").style.display = anyWeapon ? "" : "none";
+
+    // Money drops, the two dials and the table, each world.
+    var hbody = document.querySelector("#hpreview tbody");
+    hbody.innerHTML = "";
+    var anyHarder = false;
+
+    for (var h0 = 0; h0 <= 8; h0++) {
+      var hp = h0 + ahead;
+      var m = value(r.moneyDrops, hp);
+      var a = Math.min(100, value(r.harderEarlier.budget, hp));
+      var k = Math.min(100, value(r.harderEarlier.outerKinds, hp));
+      var open = tableOpen(r.enemyTable, hp);
+      if (m > 0 || a > 0 || k > 0 || open > 0) anyHarder = true;
+      var hrow = document.createElement("tr");
+      [label(h0), m > 0 ? pct(m) : "-", a > 0 ? Math.round(a) + "% of the way" : "-",
+       k > 0 ? Math.round(k) + "% closer" : "-", open > 0 ? open + (open === 1 ? " place" : " places") : "-"]
+        .forEach(function (text) {
+          var td = document.createElement("td");
+          td.textContent = text;
+          if (text === "-") td.className = "zero";
+          hrow.appendChild(td);
+        });
+      hbody.appendChild(hrow);
+    }
+
+    document.getElementById("hpreview").style.display = anyHarder ? "" : "none";
+
     var said = [];
+    if (!anyWeapon)
+      said.push("<span class=ok>No enemy weapon stat is on (they are off by default).</span>");
+    if (r.stationCost.enabled)
+      said.push("<span class=ok>Stations cost money from " + worldName(r.stationCost.fromPlus) +
+                " (the 10th you pay for there: " + stationPrice(r.stationCost, r.stationCost.fromPlus, 9) +
+                "). The station you start beside is always free" +
+                (r.stationCost.safetyNet ? "; the safety net is on." : "; the safety net is off.") + "</span>");
     if (r.enemyHealth.enabled && r.enemyHealth.coverageStart <= 0 && r.enemyHealth.coveragePerPlus <= 0)
       said.push("<span class=warn>Enemy health covers 0% of enemies at every plus - it does nothing.</span>");
     if (r.enemyHealth.enabled && r.enemyHealth.max > 0 && r.enemyHealth.max < r.enemyHealth.start)
@@ -345,6 +1139,15 @@
       said.push("<span class=warn>The damage cap is below its start, so every world gets the cap.</span>");
     if (r.enemyDamage.enabled && r.enemyDamage.start <= 0 && r.enemyDamage.perPlus <= 0)
       said.push("<span class=warn>Enemy damage is on but adds nothing at any plus.</span>");
+    if (r.firstWorldBuffs)
+      said.push("<span class=ok>Buffs from the first world: a new run plays every world one step on (the first by NEW GAME PLUS 1's rules).</span>");
+    var md = r.moneyDrops;
+    if (md.enabled && !md.enemies && !md.queens && !md.crates && !md.world)
+      said.push("<span class=warn>Money drops is on with no source ticked - it adds nothing.</span>");
+    if (r.enemyTable.enabled && r.enemyTable.rows.length === 0)
+      said.push("<span class=warn>Your enemy table is on but empty - put a plus number in a box.</span>");
+    if (!r.enemyTable.enabled && r.enemyTable.rows.length > 0)
+      said.push("<span class=warn>Your enemy table has entries but is off - tick its on box.</span>");
     if (r.enemyHealth.fromPlus === 0 || r.enemyCount.fromPlus === 0 || r.enemyDamage.fromPlus === 0)
       said.push("<span class=ok>From plus 0: the first world of every run is already tougher.</span>");
     document.getElementById("said").innerHTML = said.join("<br>");
@@ -361,6 +1164,12 @@
     b.addEventListener("click", function () {
       fill(JSON.parse(JSON.stringify(PRESETS[b.getAttribute("data-preset")])));
     });
+  });
+
+  document.getElementById("ing-add").addEventListener("click", function () {
+    document.getElementById("ing-rows").appendChild(
+      ingRow({ id: "Coral", amount: 1, perStation: 0, perPlus: 1, max: 0 }));
+    refresh();
   });
 
   document.getElementById("b-copy").addEventListener("click", function () {
@@ -393,7 +1202,113 @@
     e.target.value = "";
   });
 
+  buildTableUi();
   fill(JSON.parse(JSON.stringify(PRESETS["default"])));
+})();
+</script>
+
+<script>
+// HEALTH BAR COLOURS - the cfg's [Display] HealthBarPalette and
+// HealthBarLayerColours. The same rule as NgMath.LayerSlot: the last layer is
+// the enemy's own colour; the ones above take the palette in order, round
+// again, skipping a colour too like the one under it (distance < 0.2 in 0-1 RGB).
+(function () {
+  var PALETTES = JSON.parse(document.getElementById("palettes-data").textContent);
+  var NAMES = Object.keys(PALETTES).concat(["CUSTOM"]);
+  var CFG = { "CLASSIC": "Classic", "COLOUR-SAFE": "ColourSafe", "ICE": "Ice",
+              "FIRE": "Fire", "NEON": "Neon", "CUSTOM": "Custom" };
+  var chosen = "CLASSIC";
+  var custom = PALETTES["CLASSIC"].slice();
+  // HealthBarCountSize: NgMath.CountSizeDefault 100, 0 - CountSizeMax 400 in
+  // steps of CountSizePerStep 25; 0 hides the xN.
+  var countSize = 100;
+  function countText(p) { return p === 0 ? "hidden" : p + "%"; }
+
+  function rgb(hex) {
+    var n = parseInt(hex.replace("#", ""), 16);
+    return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255];
+  }
+  function close(a, b) {
+    var r = a[0] - b[0], g = a[1] - b[1], bl = a[2] - b[2];
+    return Math.sqrt(r * r + g * g + bl * bl) < 0.2;
+  }
+  function slot(index, pal, own) {
+    var below = own, s = -1;
+    for (var k = 1; k <= index; k++) {
+      var t = (s + 1) % pal.length;
+      for (var tries = 0; tries < pal.length - 1 && close(rgb(pal[t]), below); tries++) t = (t + 1) % pal.length;
+      s = t; below = rgb(pal[t]);
+    }
+    return s;
+  }
+  function current() { return chosen === "CUSTOM" ? custom : PALETTES[chosen]; }
+  function swatches(list) {
+    return list.map(function (h) { return '<i class="sw" style="background:' + h + '"></i>'; }).join("");
+  }
+
+  function render() {
+    var box = document.getElementById("palettes");
+    box.innerHTML = "";
+    NAMES.forEach(function (name) {
+      var l = document.createElement("label");
+      l.className = "pal";
+      l.innerHTML = '<input type="radio" name="pal"' + (name === chosen ? " checked" : "") + '> <b>' + name +
+        "</b>" + swatches(name === "CUSTOM" ? custom : PALETTES[name]);
+      l.querySelector("input").addEventListener("change", function () { chosen = name; render(); });
+      box.appendChild(l);
+    });
+
+    document.getElementById("custom-box").style.display = chosen === "CUSTOM" ? "" : "none";
+    var cs = document.getElementById("customs");
+    cs.innerHTML = "";
+    custom.forEach(function (h, i) {
+      var s = document.createElement("span");
+      s.innerHTML = '<input type="color" value="' + h + '"><button type="button" class="secondary" title="remove">x</button>';
+      s.querySelector("input").addEventListener("input", function (e) { custom[i] = e.target.value.toUpperCase(); render(); });
+      s.querySelector("button").addEventListener("click", function () {
+        if (custom.length > 1) { custom.splice(i, 1); render(); }
+      });
+      cs.appendChild(s);
+    });
+
+    // An enemy with five layers and a red bar (Resource Health), drained from the top.
+    var pal = current(), own = [1, 0, 0], bars = document.getElementById("bars");
+    bars.innerHTML = "";
+    for (var k = 4; k >= 0; k--) {
+      var top = k === 0 ? "#FF0000" : pal[slot(k, pal, own)];
+      var under = k === 0 ? "#3a1a1a" : (k === 1 ? "#FF0000" : pal[slot(k - 1, pal, own)]);
+      var d = document.createElement("div");
+      d.className = "bar";
+      var count = k === 0 ? "the enemy's own bar"
+        : (countSize === 0 ? "" : '<b style="font-size:' + (13 * countSize / 100) + 'px">x' + (k + 1) + "</b>");
+      d.innerHTML = '<span class="track"><i style="width:60%;background:' + top + '"></i><i style="width:40%;background:' +
+        under + '"></i></span>' + count;
+      bars.appendChild(d);
+    }
+
+    document.getElementById("c-count-text").textContent = countText(countSize);
+    document.getElementById("cfgcolours").textContent =
+      "HealthBarPalette = " + CFG[chosen] + "\nHealthBarLayerColours = " + custom.join(", ") +
+      "\nHealthBarCountSize = " + countSize;
+  }
+
+  document.getElementById("c-count").addEventListener("input", function (e) {
+    var v = Math.round(Number(e.target.value) / 25) * 25;
+    countSize = Math.max(0, Math.min(400, v));
+    render();
+  });
+
+  document.getElementById("c-add").addEventListener("click", function () {
+    if (custom.length < 12) { custom.push("#FFFFFF"); render(); }
+  });
+  document.getElementById("c-reset").addEventListener("click", function () {
+    custom = PALETTES["CLASSIC"].slice(); render();
+  });
+  document.getElementById("c-copy").addEventListener("click", function () {
+    if (navigator.clipboard) navigator.clipboard.writeText(document.getElementById("cfgcolours").textContent);
+  });
+
+  render();
 })();
 </script>
 </body>
